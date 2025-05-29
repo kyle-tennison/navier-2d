@@ -1,14 +1,17 @@
+use indicatif::ProgressBarIter;
 use na::DMatrix;
 
-use crate::{display::image_save, numeric, poission, ScalarField, VectorField};
+use crate::{ScalarField, VectorField, display::image_save, numeric, poission};
+
+const MAX_VELOCITY: f32 = 1000.;
 
 pub struct NewtonianSim {
-    density: f32,
-    shear_viscosity: f32,
-    inflow: (f32, f32), // (x,y)
-    solid_mask: DMatrix<bool>,
-    dt: f32,
-    simtime: f32,
+    pub density: f32,
+    pub shear_viscosity: f32,
+    pub inflow: (f32, f32), // (x,y)
+    pub solid_mask: DMatrix<bool>,
+    pub dt: f32,
+    pub simtime: f32,
     rows: usize,
     cols: usize,
     dx: f32,
@@ -130,6 +133,10 @@ impl NewtonianSim {
 
         mask
     }
+
+    pub fn iter_count(&self) -> u64 {
+        return (self.simtime / self.dt).ceil() as u64;
+    }
 }
 
 impl Iterator for NewtonianSim {
@@ -155,49 +162,18 @@ impl Iterator for NewtonianSim {
         // predict ustar
         let u_star: VectorField = self.predict_u_star();
 
-        
         // solve pressure gradient
         let poission_rhs: ScalarField =
-        (self.density / self.dt) * numeric::divergence(&u_star, self.dy, self.dx);
+            (self.density / self.dt) * numeric::divergence(&u_star, self.dy, self.dx);
 
-        let u_mag = &self.u[0].pow(2) + &self.u[1].pow(2);
-        let u_star_mag = u_star[0].pow(2) +u_star[1].pow(2);
-        image_save(
-            &u_mag, format!("u_mag-{}.png", self.t).as_str()
-        ).unwrap();
-        image_save(
-            &u_star_mag, format!("u_star_mag-{}.png", self.t).as_str()
-        ).unwrap();
-
-
-        let ustar_div = &numeric::divergence(&u_star, self.dy, self.dx);
-        image_save(
-            ustar_div, format!("u_star_div-{}.png", self.t).as_str()
-        ).unwrap();
-
-        assert_ne!(ustar_div.norm(), 0.);
-
-        println!("ustar norm: {}", ustar_div.norm());
-
-        println!("scale: {}", self.density / self.dt);
-        println!("expected norm: {}", (self.density / self.dt) * ustar_div.norm());
-
-        let this = (self.density / self.dt) * ustar_div;
-        println!("actual norm: {}", this.norm());
-        println!("Passed norm: {}", poission_rhs.norm());
-
-        
-        
         #[cfg(debug_assertions)]
         {
             let u_star_norm = u_star[0].norm() + u_star[1].norm();
             debug_assert_ne!(u_star_norm, 0.);
-            
+
             let poission_rhs_norm = poission_rhs.norm();
             debug_assert_ne!(poission_rhs_norm, 0.);
         }
-        
-        // panic!();
 
         let p: ScalarField = poission::poission_solve(&poission_rhs, &self.solid_mask, self.dx);
 
@@ -205,14 +181,28 @@ impl Iterator for NewtonianSim {
         let dp_dy: ScalarField = numeric::gradient_y(&p, self.dy);
 
         // compute next velocity field
-        let next_ux: ScalarField = &u_star[0] - (self.dt / self.density) * dp_dx;
-        let next_uy: ScalarField = &u_star[1] - (self.dt / self.density) * dp_dy;
+        let mut next_ux: ScalarField = &u_star[0] - (self.dt / self.density) * dp_dx;
+        let mut next_uy: ScalarField = &u_star[1] - (self.dt / self.density) * dp_dy;
+
+        // cap velocity
+        next_ux.iter_mut().for_each(|f| {
+            if *f > MAX_VELOCITY {
+                *f = MAX_VELOCITY
+            }
+        });
+        next_uy.iter_mut().for_each(|f| {
+            if *f > MAX_VELOCITY {
+                *f = MAX_VELOCITY
+            }
+        });
 
         let next_u: VectorField = [next_ux, next_uy];
 
         // normalize velocity to prevent explosion
-        let next_u: VectorField = [next_u[0].normalize(), next_u[1].normalize()];
+        // let next_u: VectorField = [next_u[0].normalize(), next_u[1].normalize()];
 
+        self.t += self.dt;
+        self.u = next_u.clone();
         return Some(next_u);
     }
 }

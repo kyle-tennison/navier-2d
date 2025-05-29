@@ -25,7 +25,9 @@ pub struct DisplayPacket {
 pub fn image_save(bitmap: &DMatrix<f32>, filename: &str) -> Result<(), Box<dyn Error>> {
     let (rows, cols) = bitmap.shape();
 
-    let root = BitMapBackend::new(filename, (cols as u32, rows as u32)).into_drawing_area();
+    let filename = FRAMES_PATH.join(filename);
+
+    let root = BitMapBackend::new(&filename, (cols as u32, rows as u32)).into_drawing_area();
     root.fill(&WHITE)?;
 
     let bitmap = bitmap / bitmap.max();
@@ -52,13 +54,17 @@ pub fn image_io_loop(inbound_bitmaps: mpsc::Receiver<DisplayPacket>) -> Result<(
 
     loop {
         // read inbound packet
-        let inbound = inbound_bitmaps.recv().map_err(|err| panic!("Couldn't read inbound bitmap: {:?}", err)).unwrap();
+        let inbound = inbound_bitmaps
+            .recv()
+            .map_err(|err| panic!("Couldn't read inbound bitmap: {:?}", err))
+            .unwrap();
 
         let velocity_magnitude = (inbound.velocity_x.map(|x| x.powi(2))
             + inbound.velocity_y.map(|y| y.powi(2)))
         .map(|k| k.sqrt());
 
-        image_save(&velocity_magnitude, format!("{}.png", inbound.i).as_str()).expect("Image save failed");
+        image_save(&velocity_magnitude, format!("{}.png", inbound.i).as_str())
+            .expect("Image save failed");
     }
 }
 
@@ -93,7 +99,7 @@ pub fn play_video(fps: usize, frames_dir: &Path) -> Result<(), Box<dyn Error>> {
 
     // create window
     let mut window = Window::new(
-        "Rust Video Player",
+        "Navier 2D",
         init_w as usize,
         init_h as usize,
         WindowOptions {

@@ -40,13 +40,10 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
 
     // let ij_to_k = |i: usize, j: usize| {i + (j - 1) * cols};
 
-    let mut a_coo: CooMatrix<f32> = CooMatrix::new(rows*cols, rows*cols);
+    let mut a_coo: CooMatrix<f32> = CooMatrix::new(rows * cols, rows * cols);
     let mut field_flat: DVector<f32> = DVector::from_row_slice(field.as_slice());
 
-    let ij_to_k = {
-        |(i, j): (i32, i32)| 
-        (i + j * (cols as i32)) as usize
-    };
+    let ij_to_k = { |(i, j): (i32, i32)| (i + j * (cols as i32)) as usize };
 
     for i in 0..rows {
         for j in 0..cols {
@@ -83,34 +80,34 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
         }
     }
 
-    // *(field_flat.index_mut(0)) = 0.; // pin pressure
+    *(field_flat.index_mut(0)) = 0.; // pin pressure
 
-    
     let a_csr = CsrMatrix::from(&a_coo); // convert to csr sparse
-    
+
     // solve system
     let b: Vec<f32> = field_flat.iter().map(|f| *f).collect();
 
     #[cfg(debug_assertions)]
     {
-        let norm_b = b.iter().map(|v| v*v).sum::<f32>().sqrt();
+        let norm_b = b.iter().map(|v| v * v).sum::<f32>().sqrt();
 
         assert_ne!(norm_b, 0.);
 
-        debug_assert_eq!(b.iter().any(|i| i.is_nan() | i.is_infinite()),  false);
-        debug_assert_eq!(a_coo.triplet_iter().any(|i| i.2.is_nan() | i.2.is_infinite()), false);
+        debug_assert_eq!(b.iter().any(|i| i.is_nan() | i.is_infinite()), false);
+        debug_assert_eq!(
+            a_coo
+                .triplet_iter()
+                .any(|i| i.2.is_nan() | i.2.is_infinite()),
+            false
+        );
     }
-
-
 
     let solver: ConjugateGradient<Vec<f32>, f32> = ConjugateGradient::new(b);
     let initial_guess: Vec<f32> = vec![0.0; field_flat.nrows()];
 
     let operator = ConjugateGradientOperator { a: &a_csr };
 
-
     // Now run the solver as before, but with DVector<f32> everywhere
-    println!("Solving pressure poission");
     let res = match Executor::new(operator, solver)
         .configure(|state| {
             state

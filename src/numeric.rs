@@ -121,7 +121,6 @@ fn gradeint_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> 
     return df_dy;
 }
 
-
 /// Compute the divergence of some vector field F=<u,v>. That is, ∇⋅F
 ///
 /// Mathematically, this is du/dx + dv/dy
