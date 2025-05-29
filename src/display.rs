@@ -28,7 +28,7 @@ pub fn image_save(bitmap: &DMatrix<f32>, filename: &str) -> Result<(), Box<dyn E
     let root = BitMapBackend::new(filename, (cols as u32, rows as u32)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    let bitmap = bitmap.normalize();
+    let bitmap = bitmap / bitmap.max();
 
     for i in 0..rows {
         for j in 0..cols {
@@ -52,13 +52,13 @@ pub fn image_io_loop(inbound_bitmaps: mpsc::Receiver<DisplayPacket>) -> Result<(
 
     loop {
         // read inbound packet
-        let inbound = inbound_bitmaps.recv()?;
+        let inbound = inbound_bitmaps.recv().map_err(|err| panic!("Couldn't read inbound bitmap: {:?}", err)).unwrap();
 
         let velocity_magnitude = (inbound.velocity_x.map(|x| x.powi(2))
             + inbound.velocity_y.map(|y| y.powi(2)))
         .map(|k| k.sqrt());
 
-        image_save(&velocity_magnitude, format!("{}.png", inbound.i).as_str())?;
+        image_save(&velocity_magnitude, format!("{}.png", inbound.i).as_str()).expect("Image save failed");
     }
 }
 

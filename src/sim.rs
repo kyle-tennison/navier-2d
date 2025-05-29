@@ -1,17 +1,18 @@
 use na::DMatrix;
 
-use crate::{numeric, poission, ScalarField, VectorField };
+use crate::{display::image_save, numeric, poission, ScalarField, VectorField};
 
-struct NewtonianSim {
+pub struct NewtonianSim {
     density: f32,
     shear_viscosity: f32,
+    inflow: (f32, f32), // (x,y)
     solid_mask: DMatrix<bool>,
+    dt: f32,
+    simtime: f32,
     rows: usize,
     cols: usize,
     dx: f32,
     dy: f32,
-    dt: f32,
-    simtime: f32,
     t: f32,
     u: VectorField,
     p: ScalarField,
@@ -24,8 +25,15 @@ impl NewtonianSim {
     /// Parameters
     /// - `domain` - The domain (x, y) of the 2D simulation
     /// - `step` - The step size per cell
-    pub fn new(density: f32, shear_viscosity: f32, solid_mask: &DMatrix<bool>, length: (f32, f32), timestep: f32, simtime: f32) -> Self {
-
+    pub fn new(
+        density: f32,
+        shear_viscosity: f32,
+        inflow: (f32, f32),
+        solid_mask: &DMatrix<bool>,
+        length: (f32, f32),
+        timestep: f32,
+        simtime: f32,
+    ) -> Self {
         let (rows, cols) = solid_mask.shape();
 
         let (lx, ly) = length;
@@ -41,6 +49,7 @@ impl NewtonianSim {
         NewtonianSim {
             density,
             shear_viscosity,
+            inflow,
             solid_mask: solid_mask.to_owned(),
             rows,
             cols,
@@ -58,8 +67,8 @@ impl NewtonianSim {
     /// Set the boundary values on the velocity field
     fn set_bv_u(&mut self) {
         // set inflow on left
-        self.u[0].rows_mut(0, 3).fill(0.);
-        self.u[1].rows_mut(0, 3).fill(0.);
+        self.u[0].columns_mut(0, 3).fill(self.inflow.0);
+        self.u[1].columns_mut(0, 3).fill(self.inflow.1);
 
         // set zero-derivative at outflow
         let xcol = self.u[0].column(self.cols - 2).into_owned();
@@ -79,26 +88,48 @@ impl NewtonianSim {
 
     /// Predict u*
     fn predict_u_star(&self) -> VectorField {
-
         let laplacian_u: VectorField = numeric::laplacian_vf(&self.u, self.dy, self.dx);
         let advection_u: VectorField = numeric::advection_upwind(&self.u, self.dy, self.dx);
 
         let ustar_x: ScalarField = {
-            &self.u[0] + (self.dt / self.density) * (
-                self.shear_viscosity * &laplacian_u[0] + &self.f[0] - self.density * &advection_u[0]
-            )
+            &self.u[0]
+                + (self.dt / self.density)
+                    * (self.shear_viscosity * &laplacian_u[0] + &self.f[0]
+                        - self.density * &advection_u[0])
         };
         let ustar_y: ScalarField = {
-            &self.u[1] + (self.dt / self.density) * (
-                self.shear_viscosity * &laplacian_u[1] + &self.f[1] - self.density * &advection_u[1]
-            )
+            &self.u[1]
+                + (self.dt / self.density)
+                    * (self.shear_viscosity * &laplacian_u[1] + &self.f[1]
+                        - self.density * &advection_u[1])
         };
 
         [ustar_x, ustar_y]
-
     }
 
+    pub fn sample_shape_mask(ny: usize, nx: usize) -> DMatrix<bool> {
+        let mut mask = DMatrix::from_element(ny, nx, false);
 
+        let height = (2 * ny) / 2 - ny / 2;
+        let width = (2 * nx) / 3 - nx / 3;
+
+        let new_height = height / 2;
+        let new_width = width / 2;
+
+        let y_start = ny / 2 - new_height / 2;
+        let y_end = y_start + new_height;
+
+        let x_start = nx / 2 - 2 * new_width;
+        let x_end = x_start + new_width;
+
+        for y in y_start..y_end {
+            for x in x_start..x_end {
+                mask[(y, x)] = true;
+            }
+        }
+
+        mask
+    }
 }
 
 impl Iterator for NewtonianSim {
@@ -124,8 +155,50 @@ impl Iterator for NewtonianSim {
         // predict ustar
         let u_star: VectorField = self.predict_u_star();
 
+        
         // solve pressure gradient
-        let poission_rhs: ScalarField = (self.density / self.dt) * numeric::divergence(&u_star, self.dy, self.dx);
+        let poission_rhs: ScalarField =
+        (self.density / self.dt) * numeric::divergence(&u_star, self.dy, self.dx);
+
+        let u_mag = &self.u[0].pow(2) + &self.u[1].pow(2);
+        let u_star_mag = u_star[0].pow(2) +u_star[1].pow(2);
+        image_save(
+            &u_mag, format!("u_mag-{}.png", self.t).as_str()
+        ).unwrap();
+        image_save(
+            &u_star_mag, format!("u_star_mag-{}.png", self.t).as_str()
+        ).unwrap();
+
+
+        let ustar_div = &numeric::divergence(&u_star, self.dy, self.dx);
+        image_save(
+            ustar_div, format!("u_star_div-{}.png", self.t).as_str()
+        ).unwrap();
+
+        assert_ne!(ustar_div.norm(), 0.);
+
+        println!("ustar norm: {}", ustar_div.norm());
+
+        println!("scale: {}", self.density / self.dt);
+        println!("expected norm: {}", (self.density / self.dt) * ustar_div.norm());
+
+        let this = (self.density / self.dt) * ustar_div;
+        println!("actual norm: {}", this.norm());
+        println!("Passed norm: {}", poission_rhs.norm());
+
+        
+        
+        #[cfg(debug_assertions)]
+        {
+            let u_star_norm = u_star[0].norm() + u_star[1].norm();
+            debug_assert_ne!(u_star_norm, 0.);
+            
+            let poission_rhs_norm = poission_rhs.norm();
+            debug_assert_ne!(poission_rhs_norm, 0.);
+        }
+        
+        // panic!();
+
         let p: ScalarField = poission::poission_solve(&poission_rhs, &self.solid_mask, self.dx);
 
         let dp_dx: ScalarField = numeric::gradient_x(&p, self.dx);
@@ -141,6 +214,5 @@ impl Iterator for NewtonianSim {
         let next_u: VectorField = [next_u[0].normalize(), next_u[1].normalize()];
 
         return Some(next_u);
-
     }
 }

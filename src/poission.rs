@@ -1,3 +1,5 @@
+use std::usize;
+
 use argmin::{
     core::{
         Executor, KV, Operator, State,
@@ -33,85 +35,22 @@ impl<'a> Operator for ConjugateGradientOperator<'a> {
     }
 }
 
-/// Observer bar for argmin solver
-struct ConjugateGradientObserverBar {
-    bar: ProgressBar,
-    final_mag: f32,
-    done_solve: bool,
-}
-
-impl ConjugateGradientObserverBar {
-    fn new() -> ConjugateGradientObserverBar {
-        ConjugateGradientObserverBar {
-            bar: ProgressBar::new(SOLVE_BAR_TOTAL as u64),
-            final_mag: TARGET_CG_COST.log10().floor(),
-            done_solve: false,
-        }
-    }
-}
-
-impl<I> Observe<I> for ConjugateGradientObserverBar
-where
-    I: State,
-{
-    fn observe_init(
-        &mut self,
-        _name: &str,
-        _state: &I,
-        _kv: &KV,
-    ) -> Result<(), argmin::core::Error> {
-        Ok(())
-    }
-
-    fn observe_iter(&mut self, state: &I, _kv: &KV) -> Result<(), argmin::core::Error> {
-        let value = state.get_cost().to_f32();
-
-        let cost_mag = state.get_cost().to_f32().unwrap().ln().floor();
-
-        let mut progress = ((SOLVE_BAR_TOTAL as f32) / (cost_mag - self.final_mag).sqrt())
-            .ceil()
-            .to_usize()
-            .unwrap();
-
-        if progress > SOLVE_BAR_TOTAL {
-            progress = SOLVE_BAR_TOTAL
-        }
-
-        if progress == SOLVE_BAR_TOTAL {
-            self.done_solve = true;
-            self.bar.set_position(progress as u64);
-        }
-
-        if !self.done_solve {
-            self.bar.set_position(progress as u64);
-        }
-
-        Ok(())
-    }
-
-    fn observe_final(&mut self, state: &I) -> Result<(), argmin::core::Error> {
-        self.bar.finish();
-        let iterations = state.get_iter();
-
-        println!(
-            "info: finished conjugate gradient approximation in {} iterations",
-            iterations
-        );
-        Ok(())
-    }
-}
-
-pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32) -> ScalarField{
+pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32) -> ScalarField {
     let (rows, cols) = field.shape();
 
     // let ij_to_k = |i: usize, j: usize| {i + (j - 1) * cols};
 
-    let mut a_coo: CooMatrix<f32> = CooMatrix::new(rows, cols);
+    let mut a_coo: CooMatrix<f32> = CooMatrix::new(rows*cols, rows*cols);
     let mut field_flat: DVector<f32> = DVector::from_row_slice(field.as_slice());
+
+    let ij_to_k = {
+        |(i, j): (i32, i32)| 
+        (i + j * (cols as i32)) as usize
+    };
 
     for i in 0..rows {
         for j in 0..cols {
-            let k = i + (j - 1) * cols;
+            let k = ij_to_k((i as i32, j as i32));
 
             // Dirichlet condition that p=0 inside the mask
             if *mask.index((i, j)) {
@@ -129,7 +68,7 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
                     && (0 <= nj && nj < cols as i32)
                     && !(*mask.index((ni as usize, nj as usize)))
                 {
-                    let nk = (ni + (nj - 1) * (cols as i32)) as usize;
+                    let nk = ij_to_k((ni, nj));
 
                     a_coo.push(k, nk, -1.);
                     diag += 1;
@@ -144,21 +83,34 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
         }
     }
 
-    *(field_flat.index_mut(0)) = 0.; // pin pressure
+    // *(field_flat.index_mut(0)) = 0.; // pin pressure
 
+    
     let a_csr = CsrMatrix::from(&a_coo); // convert to csr sparse
-
+    
     // solve system
     let b: Vec<f32> = field_flat.iter().map(|f| *f).collect();
+
+    #[cfg(debug_assertions)]
+    {
+        let norm_b = b.iter().map(|v| v*v).sum::<f32>().sqrt();
+
+        assert_ne!(norm_b, 0.);
+
+        debug_assert_eq!(b.iter().any(|i| i.is_nan() | i.is_infinite()),  false);
+        debug_assert_eq!(a_coo.triplet_iter().any(|i| i.2.is_nan() | i.2.is_infinite()), false);
+    }
+
+
+
     let solver: ConjugateGradient<Vec<f32>, f32> = ConjugateGradient::new(b);
     let initial_guess: Vec<f32> = vec![0.0; field_flat.nrows()];
 
     let operator = ConjugateGradientOperator { a: &a_csr };
-    let observer = ConjugateGradientObserverBar::new();
 
-    // let executor = Executor::new(operator, solver);
 
     // Now run the solver as before, but with DVector<f32> everywhere
+    println!("Solving pressure poission");
     let res = match Executor::new(operator, solver)
         .configure(|state| {
             state
@@ -166,7 +118,6 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
                 .max_iters(MAX_CG_ITER)
                 .target_cost(TARGET_CG_COST)
         })
-        .add_observer(observer, ObserverMode::NewBest)
         .run()
     {
         Ok(r) => r,
@@ -175,13 +126,14 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
         }
     };
 
-    let best_param = res.state().best_param.as_ref().expect("Conjugate Gradient failed.").to_owned();
+    let best_param = res
+        .state()
+        .best_param
+        .as_ref()
+        .expect("Conjugate Gradient failed.")
+        .to_owned();
 
     let p = DMatrix::from_vec(rows, cols, best_param);
 
     return p;
-
-
-    
-
 }

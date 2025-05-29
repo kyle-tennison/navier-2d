@@ -29,38 +29,27 @@ fn main() {
         display::image_io_loop(receiver).unwrap();
     });
 
-    let vel_x: DMatrix<f32> = dmatrix![
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
-        0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0;
-        0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0;
-        0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0;
-        0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0;
-        0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0;
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
-    ];
+    let sim = sim::NewtonianSim::new(
+        1.,
+        0.002,
+        (8., 0.),
+        &sim::NewtonianSim::sample_shape_mask(50, 50),
+        (5., 5.),
+        0.0025,
+        2.00,
+    );
 
-    let vel_y: DMatrix<f32> = vel_x.clone();
+    for (i, u) in sim.enumerate() {
+        let (ux, uy) = (u[0].to_owned(), u[1].to_owned());
 
-    let mut display_packet = DisplayPacket {
-        velocity_x: vel_x,
-        velocity_y: vel_y,
-        i: 0,
-    };
-
-    sender.send(display_packet.clone()).unwrap();
-
-    for _ in 0..30 {
-        let new_packet = DisplayPacket {
-            velocity_x: display_packet.velocity_x.add_scalar(0.1),
-            velocity_y: display_packet.velocity_y.add_scalar(0.1),
-            i: display_packet.i + 1,
-        };
-
-        sender.send(new_packet.clone()).unwrap();
-        display_packet = new_packet;
+        sender
+            .send(DisplayPacket {
+                velocity_x: ux,
+                velocity_y: uy,
+                i,
+            })
+            .unwrap();
     }
-
-    thread::sleep(Duration::from_secs(1));
 
     display::play_video(10, *FRAMES_PATH).unwrap();
 }

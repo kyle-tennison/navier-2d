@@ -1,2 +1,4 @@
 /target
 sim-frames/
+*.png
+.DS_Store
