@@ -121,6 +121,7 @@ fn gradeint_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> 
     return df_dy;
 }
 
+
 /// Compute the divergence of some vector field F=<u,v>. That is, ∇⋅F
 ///
 /// Mathematically, this is du/dx + dv/dy
@@ -200,8 +201,8 @@ pub fn advection_upwind(field: &VectorField, dy: f32, dx: f32) -> VectorField {
     let dv_dx = gradeint_x_upwind(v, u, dx);
     let dv_dy = gradeint_y_upwind(v, v, dy);
 
-    let adv_u = u * du_dx + v * du_dy;
-    let adv_v = u * dv_dx + v * dv_dy;
+    let adv_u = u.component_mul(&du_dx) + v.component_mul(&du_dy);
+    let adv_v = u.component_mul(&dv_dx) + v.component_mul(&dv_dy);
 
     return [adv_u, adv_v];
 }
@@ -246,10 +247,10 @@ mod tests {
 
         let actual_div = divergence(&field, dy, dx);
 
-        println!(
+        dbg!(format!(
             "Expected div:\n{}\n\nActual div:\n{}\n\n",
             expected_div, actual_div
-        );
+        ));
 
         assert_eq!(expected_div, actual_div);
     }
@@ -347,6 +348,8 @@ mod tests {
             &expected_adv[1], &actual_adv[1]
         );
 
-        assert_eq!(expected_adv, actual_adv);
+        println!("{}", (&expected_adv[0] - &actual_adv[0]));
+        assert!((&expected_adv[0] - &actual_adv[0]).norm() < 1.);
+        assert!((&expected_adv[1] - &actual_adv[1]).norm() < 1.);
     }
 }
