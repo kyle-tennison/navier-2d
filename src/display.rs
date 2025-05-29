@@ -22,6 +22,35 @@ pub struct DisplayPacket {
     pub i: usize,
 }
 
+pub fn image_save(bitmap: &DMatrix<f32>, filename: &str) -> Result<(), Box<dyn Error>>{
+
+    let (rows, cols) = bitmap.shape();
+
+    let root =
+        BitMapBackend::new(filename, (cols as u32, rows as u32)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let bitmap = bitmap.normalize();
+
+    for i in 0..rows {
+        for j in 0..cols {
+            let pixel_mag = bitmap
+                .get((i, j))
+                .ok_or("Pixel not on velocity field")?;
+            let pixel_intensity = (254.0 * pixel_mag).floor() as u8;
+            let pixel_color = &RGBColor(pixel_intensity, pixel_intensity, pixel_intensity);
+
+            root.draw_pixel((j as i32, i as i32), pixel_color)?;
+        }
+    }
+    root.present().expect("Failed to present bitmap");
+
+    Ok(())
+
+
+
+}
+
 pub fn image_io_loop(inbound_bitmaps: mpsc::Receiver<DisplayPacket>) -> Result<(), Box<dyn Error>> {
     if (*FRAMES_PATH).exists() {
         fs::remove_dir_all(*FRAMES_PATH)?;
@@ -32,33 +61,12 @@ pub fn image_io_loop(inbound_bitmaps: mpsc::Receiver<DisplayPacket>) -> Result<(
         // read inbound packet
         let inbound = inbound_bitmaps.recv()?;
 
-        // setup canvas to draw
-        let (rows, cols) = inbound.velocity_x.shape();
-        let filename = format!("sim-frames/{}.png", inbound.i);
-        let root =
-            BitMapBackend::new(filename.as_str(), (cols as u32, rows as u32)).into_drawing_area();
-        root.fill(&WHITE)?;
-
-        // compute max velocity
         let velocity_magnitude = (inbound.velocity_x.map(|x| x.powi(2))
             + inbound.velocity_y.map(|y| y.powi(2)))
         .map(|k| k.sqrt());
-        let max_velocity = velocity_magnitude.max();
 
-        for i in 0..rows {
-            for j in 0..cols {
-                let pixel_mag = velocity_magnitude
-                    .get((i, j))
-                    .ok_or("Pixel not on velocity field")?;
-                let pixel_intensity = (254.0 * pixel_mag / max_velocity).floor() as u8;
-                let pixel_color = &RGBColor(pixel_intensity, pixel_intensity, pixel_intensity);
+        image_save(&velocity_magnitude, format!("{}.png", inbound.i).as_str())?;
 
-                root.draw_pixel((j as i32, i as i32), pixel_color)?;
-            }
-        }
-        root.present().expect("Failed to present bitmap");
-
-        println!("Writing image {filename}");
     }
 }
 
