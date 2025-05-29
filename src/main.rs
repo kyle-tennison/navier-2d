@@ -14,6 +14,9 @@ mod solver;
 use display::DisplayPacket;
 use na::{DMatrix, dmatrix};
 
+type ScalarField = DMatrix<f32>;
+type VectorField = [ScalarField; 2];
+
 static FRAMES_PATH: LazyLock<&Path> = LazyLock::new(|| Path::new("sim-frames"));
 
 fn main() {

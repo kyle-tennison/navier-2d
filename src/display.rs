@@ -22,21 +22,17 @@ pub struct DisplayPacket {
     pub i: usize,
 }
 
-pub fn image_save(bitmap: &DMatrix<f32>, filename: &str) -> Result<(), Box<dyn Error>>{
-
+pub fn image_save(bitmap: &DMatrix<f32>, filename: &str) -> Result<(), Box<dyn Error>> {
     let (rows, cols) = bitmap.shape();
 
-    let root =
-        BitMapBackend::new(filename, (cols as u32, rows as u32)).into_drawing_area();
+    let root = BitMapBackend::new(filename, (cols as u32, rows as u32)).into_drawing_area();
     root.fill(&WHITE)?;
 
     let bitmap = bitmap.normalize();
 
     for i in 0..rows {
         for j in 0..cols {
-            let pixel_mag = bitmap
-                .get((i, j))
-                .ok_or("Pixel not on velocity field")?;
+            let pixel_mag = bitmap.get((i, j)).ok_or("Pixel not on velocity field")?;
             let pixel_intensity = (254.0 * pixel_mag).floor() as u8;
             let pixel_color = &RGBColor(pixel_intensity, pixel_intensity, pixel_intensity);
 
@@ -46,9 +42,6 @@ pub fn image_save(bitmap: &DMatrix<f32>, filename: &str) -> Result<(), Box<dyn E
     root.present().expect("Failed to present bitmap");
 
     Ok(())
-
-
-
 }
 
 pub fn image_io_loop(inbound_bitmaps: mpsc::Receiver<DisplayPacket>) -> Result<(), Box<dyn Error>> {
@@ -66,7 +59,6 @@ pub fn image_io_loop(inbound_bitmaps: mpsc::Receiver<DisplayPacket>) -> Result<(
         .map(|k| k.sqrt());
 
         image_save(&velocity_magnitude, format!("{}.png", inbound.i).as_str())?;
-
     }
 }
 

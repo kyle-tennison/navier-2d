@@ -2,15 +2,14 @@
 
 use std::mem::MaybeUninit;
 
-use na::{DMatrix, Dim, Dyn, Matrix, RawStorage, Vector};
+use argmin::solver::conjugategradient::ConjugateGradient;
+use na::{DMatrix, DVector, Dim, Dyn, Matrix, Matrix1xX, RawStorage, Vector};
 
-type ScalarField = DMatrix<f32>;
-type VectorField = [ScalarField; 2];
+use nalgebra_sparse::{CooMatrix, CsrMatrix};
 
-
+use crate::{ScalarField, VectorField};
 
 fn gradient_x(field: &ScalarField, dx: f32) -> ScalarField {
-
     let (rows, cols) = field.shape();
 
     let mut df_dx: DMatrix<f32> = DMatrix::zeros(rows, cols);
@@ -19,25 +18,23 @@ fn gradient_x(field: &ScalarField, dx: f32) -> ScalarField {
     for r in 0..rows {
         for c in 1..(cols - 1) {
             let dfi_dx = (field.index((r, c + 1)) - field.index((r, c - 1))) / (2.0 * dx);
-            *(unsafe { df_dx.get_unchecked_mut((r, c)) }) = dfi_dx
+            *(df_dx.index_mut((r, c))) = dfi_dx
         }
-    };
+    }
 
     // set edge nodes
     for r in 0..rows {
         let dfi_dx_left = (field.index((r, 1)) - field.index((r, 0))) / dx;
         let dfi_dx_right = (field.index((r, cols - 1)) - field.index((r, cols - 2))) / dx;
 
-        *(unsafe { df_dx.get_unchecked_mut((r, 0)) }) = dfi_dx_left;
-        *(unsafe { df_dx.get_unchecked_mut((r, cols - 1)) }) = dfi_dx_right;
-    };
+        *(df_dx.index_mut((r, 0))) = dfi_dx_left;
+        *(df_dx.index_mut((r, cols - 1))) = dfi_dx_right;
+    }
 
     return df_dx;
-
 }
 
 fn gradient_y(field: &ScalarField, dy: f32) -> ScalarField {
-
     let (rows, cols) = field.shape();
 
     let mut df_dy: DMatrix<f32> = DMatrix::zeros(rows, cols);
@@ -46,26 +43,23 @@ fn gradient_y(field: &ScalarField, dy: f32) -> ScalarField {
     for r in 1..(rows - 1) {
         for c in 0..cols {
             let dui_dy = (field.index((r + 1, c)) - field.index((r - 1, c))) / (2.0 * dy);
-            *(unsafe { df_dy.get_unchecked_mut((r, c)) }) = dui_dy
+            *(df_dy.index_mut((r, c))) = dui_dy
         }
-    };
+    }
 
     // set edge nodes
     for c in 0..cols {
         let dui_dy_left = (field.index((1, c)) - field.index((0, c))) / dy;
         let dui_dy_right = (field.index((rows - 1, c)) - field.index((rows - 2, c))) / dy;
 
-        *(unsafe { df_dy.get_unchecked_mut((0, c)) }) = dui_dy_left;
-        *(unsafe { df_dy.get_unchecked_mut((rows - 1, c)) }) = dui_dy_right;
-    };
+        *(df_dy.index_mut((0, c))) = dui_dy_left;
+        *(df_dy.index_mut((rows - 1, c))) = dui_dy_right;
+    }
 
     return df_dy;
-
 }
 
-
 fn gradeint_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> ScalarField {
-
     let (rows, cols) = field.shape();
 
     let mut df_dx: DMatrix<f32> = DMatrix::zeros(rows, cols);
@@ -73,68 +67,59 @@ fn gradeint_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> 
     // set interior nodes
     for r in 0..rows {
         for c in 1..(cols - 1) {
-
             let dui_dx: f32;
             if *sign_field.index((r, c)) > 0. {
-                dui_dx = ( field.index((r,c)) - field.index((r, c-1)) ) / dx;
-            }
-            else {
-                dui_dx = ( field.index((r, c+1)) - field.index((r, c))) /dx;
+                dui_dx = (field.index((r, c)) - field.index((r, c - 1))) / dx;
+            } else {
+                dui_dx = (field.index((r, c + 1)) - field.index((r, c))) / dx;
             }
 
-
-            *(unsafe { df_dx.get_unchecked_mut((r, c)) }) = dui_dx
+            *(df_dx.index_mut((r, c))) = dui_dx
         }
-    };
+    }
 
     // set edge nodes (using 1st order finite-diff)
     for r in 0..rows {
         let dfi_dx_left = (field.index((r, 1)) - field.index((r, 0))) / dx;
         let dfi_dx_right = (field.index((r, cols - 1)) - field.index((r, cols - 2))) / dx;
 
-        *(unsafe { df_dx.get_unchecked_mut((r, 0)) }) = dfi_dx_left;
-        *(unsafe { df_dx.get_unchecked_mut((r, cols - 1)) }) = dfi_dx_right;
-    };
+        *(df_dx.index_mut((r, 0))) = dfi_dx_left;
+        *(df_dx.index_mut((r, cols - 1))) = dfi_dx_right;
+    }
 
     return df_dx;
-
 }
 
 fn gradeint_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> ScalarField {
-
     let (rows, cols) = field.shape();
 
     let mut df_dy: DMatrix<f32> = DMatrix::zeros(rows, cols);
 
     // set interior nodes
-    for r in 1..(rows-1) {
+    for r in 1..(rows - 1) {
         for c in 0..cols {
-
             let dui_dy: f32;
             if *sign_field.index((r, c)) > 0. {
-                dui_dy = ( field.index((r,c)) - field.index((r-1, c)) ) / dy;
-            }
-            else {
-                dui_dy = ( field.index((r+1, c)) - field.index((r, c))) /dy;
+                dui_dy = (field.index((r, c)) - field.index((r - 1, c))) / dy;
+            } else {
+                dui_dy = (field.index((r + 1, c)) - field.index((r, c))) / dy;
             }
 
-            *(unsafe { df_dy.get_unchecked_mut((r, c)) }) = dui_dy
+            *(df_dy.index_mut((r, c))) = dui_dy
         }
-    };
+    }
 
     // set edge nodes
     for c in 0..cols {
         let dui_dy_left = (field.index((1, c)) - field.index((0, c))) / dy;
         let dui_dy_right = (field.index((rows - 1, c)) - field.index((rows - 2, c))) / dy;
 
-        *(unsafe { df_dy.get_unchecked_mut((0, c)) }) = dui_dy_left;
-        *(unsafe { df_dy.get_unchecked_mut((rows - 1, c)) }) = dui_dy_right;
-    };
+        *(df_dy.index_mut((0, c))) = dui_dy_left;
+        *(df_dy.index_mut((rows - 1, c))) = dui_dy_right;
+    }
 
     return df_dy;
-
 }
-
 
 /// Compute the divergence of some vector field F=<u,v>. That is, ∇⋅F
 ///
@@ -148,7 +133,6 @@ fn gradeint_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> 
 /// Returns:
 ///     A `ScalarField` of the divergence.
 pub fn divergence(field: &VectorField, dy: f32, dx: f32) -> ScalarField {
-
     let du_dx: DMatrix<f32> = gradient_x(&field[0], dx);
     let dv_dy: DMatrix<f32> = gradient_y(&field[1], dy);
 
@@ -156,11 +140,10 @@ pub fn divergence(field: &VectorField, dy: f32, dx: f32) -> ScalarField {
     return div;
 }
 
-
 /// Compute the laplacian of a scalar field f. That is ∇²f
-/// 
+///
 /// Mathematically, this is ∇²f = ∂²f/∂x² + ∂²f/∂y²
-/// 
+///
 /// Parameters
 /// - `field` - The vector field to take the laplaican of
 /// - `dy` - The y-axis step size
@@ -169,7 +152,6 @@ pub fn divergence(field: &VectorField, dy: f32, dx: f32) -> ScalarField {
 /// Returns:
 ///     A `VectorField` of the laplacian.
 pub fn laplacian(field: &ScalarField, dy: f32, dx: f32) -> ScalarField {
-
     // first-order derivatives
     let df_dx = gradient_x(field, dx);
     let df_dy = gradient_y(field, dy);
@@ -180,14 +162,13 @@ pub fn laplacian(field: &ScalarField, dy: f32, dx: f32) -> ScalarField {
 
     let laplacian = d2f_dx2 + d2f_dy2;
 
-    return laplacian
+    return laplacian;
 }
 
-
 /// Compute the laplacian of some (cartesian) vector field F=<u,v>. That is ∇²F
-/// 
+///
 /// Mathematically, this is ∇²F = <∇²u, ∇²v>
-/// 
+///
 /// Parameters
 /// - `field` - The vector field to take the laplaican of
 /// - `dy` - The y-axis step size
@@ -196,21 +177,13 @@ pub fn laplacian(field: &ScalarField, dy: f32, dx: f32) -> ScalarField {
 /// Returns:
 ///     A `VectorField` of the laplacian.
 pub fn laplacian_vf(field: &VectorField, dy: f32, dx: f32) -> VectorField {
+    let (u, v) = (&field[0], &field[1]);
 
-    let (u,v) = (&field[0], &field[1]);
-
-    return [
-        laplacian(u, dy, dx), laplacian(v, dy, dx)
-    ];
+    return [laplacian(u, dy, dx), laplacian(v, dy, dx)];
 }
 
-
-
-
-
-
 /// Computes the upwind advection (u⋅∇)u, where u is a vector field.
-/// 
+///
 /// Parameters:
 /// - `field` - The field to take the advection of (i.e. u shown above)
 /// - `dy` - The y-axis step size
@@ -219,12 +192,11 @@ pub fn laplacian_vf(field: &VectorField, dy: f32, dx: f32) -> VectorField {
 /// Returns:
 ///     A `VectorField` of the advection.
 pub fn advection_upwind(field: &VectorField, dy: f32, dx: f32) -> VectorField {
-
     let (u, v) = (&field[0], &field[1]);
 
     let du_dx = gradeint_x_upwind(u, u, dx);
     let du_dy = gradeint_y_upwind(u, v, dy);
-    
+
     let dv_dx = gradeint_x_upwind(v, u, dx);
     let dv_dy = gradeint_y_upwind(v, v, dy);
 
@@ -233,8 +205,6 @@ pub fn advection_upwind(field: &VectorField, dy: f32, dx: f32) -> VectorField {
 
     return [adv_u, adv_v];
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -284,7 +254,6 @@ mod tests {
         assert_eq!(expected_div, actual_div);
     }
 
-
     #[test]
     fn test_laplacian() {
         let field_x: DMatrix<f32> = dmatrix![
@@ -326,12 +295,10 @@ mod tests {
         let actual_lap = laplacian_vf(&field, 0.5, 0.5);
 
         assert_eq!(expected_lap, actual_lap);
-
     }
 
     #[test]
     fn test_advection() {
-
         let field_x: DMatrix<f32> = dmatrix![
             1., 5., 2., 1., 6.;
             5., 4., 3., 0., 2.;
@@ -351,12 +318,12 @@ mod tests {
         let field = [field_x, field_y];
 
         let expected_adv_x = dmatrix![
-             -66.,   40.,  -12.,   -2.,   58.;
-              62.,  -12.,   12.,  -12.,    8.;
-             -54.,  104.,  -32.,  252.,   20.;
-             136., -124.,   30.,  -82.,  -84.;
-             -68.,  -12.,  -42.,   -6.,   92.;
-            ];
+         -66.,   40.,  -12.,   -2.,   58.;
+          62.,  -12.,   12.,  -12.,    8.;
+         -54.,  104.,  -32.,  252.,   20.;
+         136., -124.,   30.,  -82.,  -84.;
+         -68.,  -12.,  -42.,   -6.,   92.;
+        ];
 
         let expected_adv_y = dmatrix![
               26.,  -70.,  -12.,  106.,  -84.;
@@ -381,7 +348,5 @@ mod tests {
         );
 
         assert_eq!(expected_adv, actual_adv);
-
-
     }
 }
