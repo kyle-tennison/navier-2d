@@ -9,7 +9,7 @@ extern crate nalgebra as na;
 
 mod display;
 mod numeric;
-mod solver;
+mod poission;
 
 use display::DisplayPacket;
 use na::{DMatrix, dmatrix};
