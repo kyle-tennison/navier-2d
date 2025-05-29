@@ -1,7 +1,6 @@
-use indicatif::ProgressBarIter;
 use na::DMatrix;
 
-use crate::{ScalarField, VectorField, display::image_save, numeric, poission};
+use crate::{ScalarField, VectorField, numeric, poission};
 
 const MAX_VELOCITY: f32 = 1000.;
 
@@ -18,7 +17,6 @@ pub struct NewtonianSim {
     dy: f32,
     t: f32,
     u: VectorField,
-    p: ScalarField,
     f: VectorField,
 }
 
@@ -45,7 +43,6 @@ impl NewtonianSim {
 
         let ux: DMatrix<f32> = DMatrix::zeros(rows, cols);
         let uy: DMatrix<f32> = DMatrix::zeros(rows, cols);
-        let p: DMatrix<f32> = DMatrix::zeros(rows, cols);
         let fx: DMatrix<f32> = DMatrix::zeros(rows, cols);
         let fy: DMatrix<f32> = DMatrix::zeros(rows, cols);
 
@@ -62,7 +59,6 @@ impl NewtonianSim {
             simtime,
             t: 0.,
             u: [ux, uy],
-            p,
             f: [fx, fy],
         }
     }
@@ -85,8 +81,6 @@ impl NewtonianSim {
         self.u[1].row_mut(0).fill(0.);
         self.u[0].row_mut(self.rows - 1).fill(0.);
         self.u[1].row_mut(self.rows - 1).fill(0.);
-
-        ()
     }
 
     /// Predict u*
@@ -135,7 +129,7 @@ impl NewtonianSim {
     }
 
     pub fn iter_count(&self) -> u64 {
-        return (self.simtime / self.dt).ceil() as u64;
+        (self.simtime / self.dt).ceil() as u64
     }
 }
 
@@ -152,8 +146,8 @@ impl Iterator for NewtonianSim {
         // zero-out velocity in object shape
         let mask_flat = self.solid_mask.as_slice();
 
-        for i in 0..mask_flat.len() {
-            if mask_flat[i] {
+        for (i, msk) in mask_flat.iter().enumerate() {
+            if *msk {
                 self.u[0].as_mut_slice()[i] = 0.;
                 self.u[1].as_mut_slice()[i] = 0.;
             }
@@ -203,6 +197,6 @@ impl Iterator for NewtonianSim {
 
         self.t += self.dt;
         self.u = next_u.clone();
-        return Some(next_u);
+        Some(next_u)
     }
 }

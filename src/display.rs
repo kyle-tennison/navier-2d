@@ -86,10 +86,7 @@ pub fn play_video(fps: usize, frames_dir: &Path) -> Result<(), Box<dyn Error>> {
     }
 
     // load all frames as DynamicImage
-    let originals: Vec<DynamicImage> = paths
-        .iter()
-        .map(|p| image::open(p))
-        .collect::<Result<_, _>>()?;
+    let originals: Vec<DynamicImage> = paths.iter().map(image::open).collect::<Result<_, _>>()?;
 
     // determine base dimensions
     let (w, h) = originals[0].dimensions();

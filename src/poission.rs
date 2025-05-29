@@ -1,20 +1,12 @@
-use std::usize;
-
 use argmin::{
-    core::{
-        Executor, KV, Operator, State,
-        observers::{Observe, ObserverMode},
-    },
+    core::{Executor, Operator},
     solver::conjugategradient::ConjugateGradient,
 };
-use indicatif::ProgressBar;
 use na::{DMatrix, DVector};
 use nalgebra_sparse::{CooMatrix, CsrMatrix};
-use num_traits::cast::ToPrimitive;
 
 use crate::ScalarField;
 
-const SOLVE_BAR_TOTAL: usize = 1000; // steps in the progress bar
 pub const TARGET_CG_COST: f32 = 1e-4; // maximum error in conjugate-gradient solve
 pub const MAX_CG_ITER: u64 = 10_000_000; // maximum number of iterations for conjugate-gradient
 
@@ -23,7 +15,7 @@ struct ConjugateGradientOperator<'a> {
     a: &'a CsrMatrix<f32>,
 }
 
-impl<'a> Operator for ConjugateGradientOperator<'a> {
+impl Operator for ConjugateGradientOperator<'_> {
     type Param = Vec<f32>;
     type Output = Vec<f32>;
 
@@ -85,7 +77,7 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
     let a_csr = CsrMatrix::from(&a_coo); // convert to csr sparse
 
     // solve system
-    let b: Vec<f32> = field_flat.iter().map(|f| *f).collect();
+    let b: Vec<f32> = field_flat.iter().copied().collect();
 
     #[cfg(debug_assertions)]
     {
@@ -93,12 +85,11 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
 
         assert_ne!(norm_b, 0.);
 
-        debug_assert_eq!(b.iter().any(|i| i.is_nan() | i.is_infinite()), false);
-        debug_assert_eq!(
-            a_coo
+        debug_assert!(!b.iter().any(|i| i.is_nan() | i.is_infinite()));
+        debug_assert!(
+            !a_coo
                 .triplet_iter()
-                .any(|i| i.2.is_nan() | i.2.is_infinite()),
-            false
+                .any(|i| i.2.is_nan() | i.2.is_infinite())
         );
     }
 
@@ -130,7 +121,5 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
         .expect("Conjugate Gradient failed.")
         .to_owned();
 
-    let p = DMatrix::from_vec(rows, cols, best_param);
-
-    return p;
+    DMatrix::from_vec(rows, cols, best_param)
 }

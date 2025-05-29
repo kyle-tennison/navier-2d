@@ -2,7 +2,6 @@ use std::{
     path::Path,
     sync::{LazyLock, mpsc},
     thread,
-    time::Duration,
 };
 
 extern crate nalgebra as na;
@@ -14,8 +13,7 @@ mod sim;
 
 use display::DisplayPacket;
 use indicatif::ProgressIterator;
-use na::{DMatrix, dmatrix};
-use num_traits::ToPrimitive;
+use na::DMatrix;
 
 type ScalarField = DMatrix<f32>;
 type VectorField = [ScalarField; 2];

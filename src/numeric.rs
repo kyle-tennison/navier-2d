@@ -1,11 +1,6 @@
 // Numeric approximations
 
-use std::mem::MaybeUninit;
-
-use argmin::solver::conjugategradient::ConjugateGradient;
-use na::{DMatrix, DVector, Dim, Dyn, Matrix, Matrix1xX, RawStorage, Vector};
-
-use nalgebra_sparse::{CooMatrix, CsrMatrix};
+use na::DMatrix;
 
 use crate::{ScalarField, VectorField};
 
@@ -31,7 +26,7 @@ pub fn gradient_x(field: &ScalarField, dx: f32) -> ScalarField {
         *(df_dx.index_mut((r, cols - 1))) = dfi_dx_right;
     }
 
-    return df_dx;
+    df_dx
 }
 
 pub fn gradient_y(field: &ScalarField, dy: f32) -> ScalarField {
@@ -56,7 +51,7 @@ pub fn gradient_y(field: &ScalarField, dy: f32) -> ScalarField {
         *(df_dy.index_mut((rows - 1, c))) = dui_dy_right;
     }
 
-    return df_dy;
+    df_dy
 }
 
 fn gradeint_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> ScalarField {
@@ -65,9 +60,9 @@ fn gradeint_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> 
     let mut df_dx: DMatrix<f32> = DMatrix::zeros(rows, cols);
 
     // set interior nodes
+    let mut dui_dx: f32;
     for r in 0..rows {
         for c in 1..(cols - 1) {
-            let dui_dx: f32;
             if *sign_field.index((r, c)) > 0. {
                 dui_dx = (field.index((r, c)) - field.index((r, c - 1))) / dx;
             } else {
@@ -87,7 +82,7 @@ fn gradeint_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> 
         *(df_dx.index_mut((r, cols - 1))) = dfi_dx_right;
     }
 
-    return df_dx;
+    df_dx
 }
 
 fn gradeint_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> ScalarField {
@@ -96,9 +91,9 @@ fn gradeint_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> 
     let mut df_dy: DMatrix<f32> = DMatrix::zeros(rows, cols);
 
     // set interior nodes
+    let mut dui_dy: f32;
     for r in 1..(rows - 1) {
         for c in 0..cols {
-            let dui_dy: f32;
             if *sign_field.index((r, c)) > 0. {
                 dui_dy = (field.index((r, c)) - field.index((r - 1, c))) / dy;
             } else {
@@ -118,7 +113,7 @@ fn gradeint_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> 
         *(df_dy.index_mut((rows - 1, c))) = dui_dy_right;
     }
 
-    return df_dy;
+    df_dy
 }
 
 /// Compute the divergence of some vector field F=<u,v>. That is, ∇⋅F
@@ -136,8 +131,7 @@ pub fn divergence(field: &VectorField, dy: f32, dx: f32) -> ScalarField {
     let du_dx: DMatrix<f32> = gradient_x(&field[0], dx);
     let dv_dy: DMatrix<f32> = gradient_y(&field[1], dy);
 
-    let div = du_dx + dv_dy;
-    return div;
+    du_dx + dv_dy
 }
 
 /// Compute the laplacian of a scalar field f. That is ∇²f
@@ -160,9 +154,7 @@ pub fn laplacian(field: &ScalarField, dy: f32, dx: f32) -> ScalarField {
     let d2f_dx2 = gradient_x(&df_dx, dx);
     let d2f_dy2 = gradient_y(&df_dy, dy);
 
-    let laplacian = d2f_dx2 + d2f_dy2;
-
-    return laplacian;
+    d2f_dx2 + d2f_dy2
 }
 
 /// Compute the laplacian of some (cartesian) vector field F=<u,v>. That is ∇²F
@@ -179,7 +171,7 @@ pub fn laplacian(field: &ScalarField, dy: f32, dx: f32) -> ScalarField {
 pub fn laplacian_vf(field: &VectorField, dy: f32, dx: f32) -> VectorField {
     let (u, v) = (&field[0], &field[1]);
 
-    return [laplacian(u, dy, dx), laplacian(v, dy, dx)];
+    [laplacian(u, dy, dx), laplacian(v, dy, dx)]
 }
 
 /// Computes the upwind advection (u⋅∇)u, where u is a vector field.
@@ -203,14 +195,12 @@ pub fn advection_upwind(field: &VectorField, dy: f32, dx: f32) -> VectorField {
     let adv_u = u.component_mul(&du_dx) + v.component_mul(&du_dy);
     let adv_v = u.component_mul(&dv_dx) + v.component_mul(&dv_dy);
 
-    return [adv_u, adv_v];
+    [adv_u, adv_v]
 }
 
 #[cfg(test)]
 mod tests {
     use na::dmatrix;
-
-    use crate::display::image_save;
 
     use super::*;
 
