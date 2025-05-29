@@ -9,7 +9,7 @@ use nalgebra_sparse::{CooMatrix, CsrMatrix};
 
 use crate::{ScalarField, VectorField};
 
-fn gradient_x(field: &ScalarField, dx: f32) -> ScalarField {
+pub fn gradient_x(field: &ScalarField, dx: f32) -> ScalarField {
     let (rows, cols) = field.shape();
 
     let mut df_dx: DMatrix<f32> = DMatrix::zeros(rows, cols);
@@ -34,7 +34,7 @@ fn gradient_x(field: &ScalarField, dx: f32) -> ScalarField {
     return df_dx;
 }
 
-fn gradient_y(field: &ScalarField, dy: f32) -> ScalarField {
+pub fn gradient_y(field: &ScalarField, dy: f32) -> ScalarField {
     let (rows, cols) = field.shape();
 
     let mut df_dy: DMatrix<f32> = DMatrix::zeros(rows, cols);

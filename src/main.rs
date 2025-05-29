@@ -10,6 +10,7 @@ extern crate nalgebra as na;
 mod display;
 mod numeric;
 mod poission;
+mod sim;
 
 use display::DisplayPacket;
 use na::{DMatrix, dmatrix};

@@ -101,7 +101,7 @@ where
     }
 }
 
-pub fn poission_solve(field: &ScalarField, mask: DMatrix<bool>, step_size: f32) {
+pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32) -> ScalarField{
     let (rows, cols) = field.shape();
 
     // let ij_to_k = |i: usize, j: usize| {i + (j - 1) * cols};
@@ -174,17 +174,14 @@ pub fn poission_solve(field: &ScalarField, mask: DMatrix<bool>, step_size: f32) 
             panic!("Conjugate Gradient error: {err}");
         }
     };
-    //         state
-    //             .param(initial_guess)
-    //             .max_iters(MAX_CG_ITER)
-    //             .target_cost(TARGET_CG_COST)
-    //     })
-    //     .add_observer(observer, ObserverMode::NewBest)
-    //     .run()
-    // {
-    //     Ok(r) => r,
-    //     Err(err) => {
-    //         panic!("Conjugate Gradient error: {err}");
-    //     }
-    // };
+
+    let best_param = res.state().best_param.as_ref().expect("Conjugate Gradient failed.").to_owned();
+
+    let p = DMatrix::from_vec(rows, cols, best_param);
+
+    return p;
+
+
+    
+
 }
