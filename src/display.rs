@@ -1,11 +1,15 @@
-use std::{error::Error, sync::mpsc,     fs,
+use std::{
+    error::Error,
+    fs,
     path::Path,
-    time::{Duration, Instant},};
+    sync::mpsc,
+    time::{Duration, Instant},
+};
 
 use na::DMatrix;
-use plotters::{prelude::*};
+use plotters::prelude::*;
 
-use image::{imageops::FilterType, DynamicImage, GenericImageView};
+use image::{DynamicImage, GenericImageView, imageops::FilterType};
 use minifb::{Key, Window, WindowOptions};
 use screen_size::get_primary_screen_size as get_screen_size;
 
@@ -18,58 +22,47 @@ pub struct DisplayPacket {
     pub i: usize,
 }
 
-pub fn image_io_loop(
-    inbound_bitmaps: mpsc::Receiver<DisplayPacket>,
-) -> Result<(), Box<dyn Error>> {
-    
-    if (*FRAMES_PATH).exists(){
+pub fn image_io_loop(inbound_bitmaps: mpsc::Receiver<DisplayPacket>) -> Result<(), Box<dyn Error>> {
+    if (*FRAMES_PATH).exists() {
         fs::remove_dir_all(*FRAMES_PATH)?;
     }
     fs::create_dir(*FRAMES_PATH)?;
 
-
-    loop{
-
+    loop {
         // read inbound packet
         let inbound = inbound_bitmaps.recv()?;
-        
+
         // setup canvas to draw
         let (rows, cols) = inbound.velocity_x.shape();
         let filename = format!("sim-frames/{}.png", inbound.i);
-        let root = BitMapBackend::new(filename.as_str(), (cols as u32, rows as u32))
-        .into_drawing_area();
-    root.fill(&WHITE)?;
-    
-    
-    // compute max velocity 
-    let velocity_magnitude = (inbound.velocity_x.map(|x| x.powi(2)) + inbound.velocity_y.map(|y| y.powi(2))).map(|k| k.sqrt());
-    let max_velocity = velocity_magnitude.max();
-    
-    
-    
-    for i in 0..rows {
-        for j in 0..cols {
-            
-            let pixel_mag = velocity_magnitude.get((i, j)).ok_or("Pixel not on velocity field")?;
-            let pixel_intensity = (254.0 * pixel_mag / max_velocity).floor() as u8;
-            let pixel_color = &RGBColor(pixel_intensity, pixel_intensity, pixel_intensity);
-            
-            root.draw_pixel((j as i32, i as i32), pixel_color)?;
-            
+        let root =
+            BitMapBackend::new(filename.as_str(), (cols as u32, rows as u32)).into_drawing_area();
+        root.fill(&WHITE)?;
+
+        // compute max velocity
+        let velocity_magnitude = (inbound.velocity_x.map(|x| x.powi(2))
+            + inbound.velocity_y.map(|y| y.powi(2)))
+        .map(|k| k.sqrt());
+        let max_velocity = velocity_magnitude.max();
+
+        for i in 0..rows {
+            for j in 0..cols {
+                let pixel_mag = velocity_magnitude
+                    .get((i, j))
+                    .ok_or("Pixel not on velocity field")?;
+                let pixel_intensity = (254.0 * pixel_mag / max_velocity).floor() as u8;
+                let pixel_color = &RGBColor(pixel_intensity, pixel_intensity, pixel_intensity);
+
+                root.draw_pixel((j as i32, i as i32), pixel_color)?;
+            }
         }
-    }
-    root.present().expect("Failed to present bitmap");
+        root.present().expect("Failed to present bitmap");
 
-    println!("Writing image {filename}");
-    
+        println!("Writing image {filename}");
     }
-
 }
 
-pub fn play_video(
-    fps: usize,
-    frames_dir: &Path,
-) -> Result<(), Box<dyn Error>> {
+pub fn play_video(fps: usize, frames_dir: &Path) -> Result<(), Box<dyn Error>> {
     // collect & sort frame paths
     let mut paths: Vec<_> = fs::read_dir(frames_dir)?
         .filter_map(Result::ok)
@@ -97,7 +90,7 @@ pub fn play_video(
     let (screen_w, _) = get_screen_size().expect("failed to get screen size");
     let init_w = screen_w / 2;
     let init_h = (init_w as f32 * (h as f32 / w as f32)) as u32;
-    
+
     // create window
     let mut window = Window::new(
         "Rust Video Player",
@@ -107,7 +100,8 @@ pub fn play_video(
             resize: true,
             ..WindowOptions::default()
         },
-    ).expect("Could not create window for video");
+    )
+    .expect("Could not create window for video");
 
     let frame_time = Duration::from_secs_f64(1.0 / fps as f64);
     let start = Instant::now();
@@ -134,7 +128,9 @@ pub fn play_video(
             })
             .collect();
 
-        window.update_with_buffer(&buffer, win_w, win_h).expect("Could not update window with buffer");
+        window
+            .update_with_buffer(&buffer, win_w, win_h)
+            .expect("Could not update window with buffer");
         // throttle to fps
         let next = start + frame_time * (idx + 1) as u32;
         if let Some(d) = next.checked_duration_since(Instant::now()) {
