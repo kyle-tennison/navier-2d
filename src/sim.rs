@@ -1,7 +1,7 @@
 use na::DMatrix;
-use rand::{rngs::ThreadRng, Rng};
+use rand::{Rng, rngs::ThreadRng};
 
-use crate::{display::image_save, numeric, poission, ScalarField, VectorField};
+use crate::{ScalarField, VectorField, numeric, poission};
 
 const MAX_VELOCITY: f32 = 1000.;
 
@@ -20,10 +20,10 @@ pub struct NewtonianSim {
     u: VectorField,
     f: VectorField,
     i: usize,
-    rng: ThreadRng
+    rng: ThreadRng,
 }
 
-impl<'a> NewtonianSim {
+impl NewtonianSim {
     /// Create a new Newtonian fluid simulation instance
     ///
     /// Parameters
@@ -66,17 +66,18 @@ impl<'a> NewtonianSim {
             u: [ux, uy],
             f: [fx, fy],
             i: 0,
-            rng
+            rng,
         }
     }
 
     /// Set the boundary values on the velocity field
     fn set_bv_u(&mut self) {
-
         let velocity_noise: f32 = self.rng.random_range(0.0..0.1);
 
         // set inflow on left
-        self.u[0].columns_mut(0, 3).fill(self.inflow.0 * (1.+velocity_noise));
+        self.u[0]
+            .columns_mut(0, 3)
+            .fill(self.inflow.0 * (1. + velocity_noise));
         self.u[1].columns_mut(0, 3).fill(self.inflow.1);
 
         // set zero-derivative at outflow
@@ -96,7 +97,8 @@ impl<'a> NewtonianSim {
     /// Predict u*
     fn predict_u_star(&self, dt: f32) -> VectorField {
         let laplacian_u: VectorField = numeric::laplacian_vf(&self.u, self.dy, self.dx);
-        let advection_u: VectorField = numeric::advection_upwind(&self.u, &self.solid_mask, self.dy, self.dx);
+        let advection_u: VectorField =
+            numeric::advection_upwind(&self.u, &self.solid_mask, self.dy, self.dx);
 
         let ustar_x: ScalarField = {
             &self.u[0]
@@ -148,9 +150,9 @@ impl Iterator for NewtonianSim {
         }
         self.set_bv_u();
 
-        let max_ux = *(&self.u[0].iter().fold(0.0f32, |m,&x| m.max(x.abs())));
-        let max_uy = *(&self.u[1].iter().fold(0.0f32, |m,&x| m.max(x.abs())));
-        let dt = self.cfl / (max_ux/self.dx + max_uy/self.dy);
+        let max_ux = self.u[0].iter().fold(0.0f32, |m, &x| m.max(x.abs()));
+        let max_uy = self.u[1].iter().fold(0.0f32, |m, &x| m.max(x.abs()));
+        let dt = self.cfl / (max_ux / self.dx + max_uy / self.dy);
 
         // zero-out velocity in object shape
         let mask_flat = self.solid_mask.as_slice();
@@ -189,7 +191,9 @@ impl Iterator for NewtonianSim {
 
         // cap velocity
 
-        if next_ux.iter().any(|ux| *ux > MAX_VELOCITY) || next_uy.iter().any(|uy| *uy > MAX_VELOCITY) {
+        if next_ux.iter().any(|ux| *ux > MAX_VELOCITY)
+            || next_uy.iter().any(|uy| *uy > MAX_VELOCITY)
+        {
             eprintln!("Velocity exceeded maximum; simulation exploded :(");
             return None;
         }
@@ -213,37 +217,33 @@ impl Iterator for NewtonianSim {
         self.i += 1;
         self.t += dt;
         self.u = next_u.clone();
-        
 
         // let velocity_magnitude = (self.u[0].map(|x| x.powi(2))
         //     + self.u[1].map(|y| y.powi(2)))
         // .map(|k| k.sqrt());
-
 
         // let advection = (numeric::advection_upwind(&self.u, &self.solid_mask, self.dy, self.dx));
 
         // let advection_magnitude = (advection[0].map(|x| x.powi(2))
         //     + advection[1].map(|y| y.powi(2)))
         // .map(|k| k.sqrt());
-    
+
         // let pressure_gradient = [numeric::gradient_x(&p, self.dx), numeric::gradient_y(&p, self.dy)];
         // let pressure_gradient_magnitude = (pressure_gradient[0].map(|x| x.powi(2))
         //     + pressure_gradient[1].map(|y| y.powi(2)))
         // .map(|k| k.sqrt());
-    
+
         // let laplacian = numeric::laplacian_vf(&self.u, self.dy, self.dx);
         // let laplacian_magnitude = (laplacian[0].map(|x| x.powi(2))
         //     + laplacian[1].map(|y| y.powi(2)))
         // .map(|k| k.sqrt());
-    
-        
+
         // image_save(&p, format!("pressure-{}.png", self.i).as_str()).unwrap();
         // image_save(&p, format!("velocity-{}.png", self.i).as_str()).unwrap();
         // image_save(&velocity_magnitude, format!("velocity-{}.png", self.i).as_str()).unwrap();
         // image_save(&advection_magnitude, format!("advection-{}.png", self.i).as_str()).unwrap();
         // image_save(&laplacian_magnitude, format!("laplacian-{}.png", self.i).as_str()).unwrap();
         // image_save(&pressure_gradien`t_magnitude, format!("pressure-gradient-{}.png", self.i).as_str()).unwrap();
-
 
         Some((next_u, self.t))
     }

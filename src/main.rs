@@ -12,7 +12,7 @@ mod poission;
 mod sim;
 
 use display::DisplayPacket;
-use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle};
 use na::DMatrix;
 use num_traits::Zero;
 
@@ -37,15 +37,14 @@ fn main() {
         &sim::NewtonianSim::sample_shape_mask(200, 200),
         (5., 5.),
         simtime,
-        1.
+        1.,
     );
-
 
     // let mut pbar = ProgressBar::new((simtime*100.).floor() as u64);
     let mut iter_count = 0; // note, this will be nonlinear-timing rn
     let mut t_outer = 0.;
 
-    let bar = ProgressBar::new(10_000); 
+    let bar = ProgressBar::new(10_000);
     bar.set_style(
         ProgressStyle::with_template(
             "[Elapsed: {elapsed_precise}] [{bar:40.cyan/blue}] {percent}% (Remaining: {eta_precise})"
@@ -53,7 +52,6 @@ fn main() {
         .unwrap()
         .progress_chars("##-"),
     );
-
 
     for (i, (u, t)) in sim.enumerate() {
         let (ux, uy) = (u[0].to_owned(), u[1].to_owned());
@@ -75,7 +73,7 @@ fn main() {
 
     let mut fps = (iter_count as f32 / simtime).floor() as usize;
 
-    fps.is_zero().then(|| fps+=1);
+    fps.is_zero().then(|| fps += 1);
 
     println!("fps: {}; t={}", fps, t_outer);
 

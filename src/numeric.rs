@@ -174,9 +174,7 @@ pub fn laplacian_vf(field: &VectorField, dy: f32, dx: f32) -> VectorField {
     [laplacian(u, dy, dx), laplacian(v, dy, dx)]
 }
 
-
-pub fn zero_where_mask(field: &mut ScalarField, mask: &DMatrix<bool>) -> () {
-
+pub fn zero_where_mask(field: &mut ScalarField, mask: &DMatrix<bool>) {
     // zero-out velocity in object shape
     let mask_flat = mask.as_slice();
 
@@ -185,7 +183,7 @@ pub fn zero_where_mask(field: &mut ScalarField, mask: &DMatrix<bool>) -> () {
             field.as_mut_slice()[i] = 0.;
         }
     }
-} 
+}
 
 /// Computes the upwind advection (u⋅∇)u, where u is a vector field.
 ///
@@ -196,7 +194,12 @@ pub fn zero_where_mask(field: &mut ScalarField, mask: &DMatrix<bool>) -> () {
 ///
 /// Returns:
 ///     A `VectorField` of the advection.
-pub fn advection_upwind(field: &VectorField, mask: &DMatrix<bool>, dy: f32, dx: f32) -> VectorField {
+pub fn advection_upwind(
+    field: &VectorField,
+    mask: &DMatrix<bool>,
+    dy: f32,
+    dx: f32,
+) -> VectorField {
     let (u, v) = (&field[0], &field[1]);
 
     let mut du_dx = gradeint_x_upwind(u, u, dx);
@@ -205,11 +208,11 @@ pub fn advection_upwind(field: &VectorField, mask: &DMatrix<bool>, dy: f32, dx: 
     let mut dv_dx = gradeint_x_upwind(v, u, dx);
     let mut dv_dy = gradeint_y_upwind(v, v, dy);
 
-    zero_where_mask(&mut du_dx, &mask);
-    zero_where_mask(&mut du_dy, &mask);
-    zero_where_mask(&mut dv_dx, &mask);
-    zero_where_mask(&mut dv_dy, &mask);
-    
+    zero_where_mask(&mut du_dx, mask);
+    zero_where_mask(&mut du_dy, mask);
+    zero_where_mask(&mut dv_dx, mask);
+    zero_where_mask(&mut dv_dy, mask);
+
     let adv_u = u.component_mul(&du_dx) + v.component_mul(&du_dy);
     let adv_v = u.component_mul(&dv_dx) + v.component_mul(&dv_dy);
 
