@@ -1,5 +1,8 @@
 use std::{
-    path::{Path, PathBuf}, process::exit, sync::{mpsc, LazyLock}, thread
+    path::{Path, PathBuf},
+    process::exit,
+    sync::{LazyLock, mpsc},
+    thread,
 };
 
 extern crate nalgebra as na;
@@ -7,8 +10,8 @@ extern crate nalgebra as na;
 mod display;
 mod numeric;
 mod poission;
-mod sim;
 mod preprocessor;
+mod sim;
 
 use clap::Parser;
 use display::DisplayPacket;
@@ -34,8 +37,10 @@ struct Args {
     #[arg(short, long)]
     show_video: bool,
 
-    #[arg(help = "The path to a PNG image to use as the mask. White pixels will permit fluid flow, black pixels will be treated as solid.")]
-    mask_path: Option<String>
+    #[arg(
+        help = "The path to a PNG image to use as the mask. White pixels will permit fluid flow, black pixels will be treated as solid."
+    )]
+    mask_path: Option<String>,
 }
 
 fn main() {
@@ -50,7 +55,7 @@ fn main() {
 
     let frames_path = args
         .frames_dir
-        .and_then(|p| Some(PathBuf::from(p)))
+        .map(PathBuf::from)
         .unwrap_or((*DEFAULT_FRAMES_PATH).into());
 
     debug!("Using frames path {:?}", frames_path);
@@ -60,21 +65,21 @@ fn main() {
 
     if let Some(mask_path) = args.mask_path {
         info!("Loading mask path {}...", &mask_path);
-        mask = match preprocessor::mask_from_image(PathBuf::from(&mask_path).as_path()){
+        mask = match preprocessor::mask_from_image(PathBuf::from(&mask_path).as_path()) {
             Ok(m) => m,
             Err(err) => {
-                error!("Failed to load mask from provided image {}, because: {}", mask_path, err);
+                error!(
+                    "Failed to load mask from provided image {}, because: {}",
+                    mask_path, err
+                );
                 exit(1);
             }
         };
         debug!("Sucessfully created mask from image");
-    }
-    else{
+    } else {
         warn!("Using example shape mask.");
         mask = sim::NewtonianSim::sample_shape_mask(200, 200);
     }
-
-
 
     let (sender, receiver) = mpsc::channel();
 
@@ -85,15 +90,7 @@ fn main() {
 
     let simtime = 15.00;
 
-    let sim = sim::NewtonianSim::new(
-        1.,
-        0.002,
-        (8., 0.),
-        &mask,
-        (5., 5.),
-        simtime,
-        1.,
-    );
+    let sim = sim::NewtonianSim::new(1., 0.002, (8., 0.), &mask, (5., 5.), simtime, 1.);
 
     // let mut pbar = ProgressBar::new((simtime*100.).floor() as u64);
     let mut iter_count = 0; // note, this will be nonlinear-timing rn
