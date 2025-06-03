@@ -74,13 +74,13 @@ fn gradeint_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> 
     }
 
     // set edge nodes (using 1st order finite-diff)
-    // for r in 0..rows {
-    //     let dfi_dx_left = (field.index((r, 1)) - field.index((r, 0))) / dx;
-    //     let dfi_dx_right = (field.index((r, cols - 1)) - field.index((r, cols - 2))) / dx;
+    for r in 0..rows {
+        let dfi_dx_left = (field.index((r, 1)) - field.index((r, 0))) / dx;
+        let dfi_dx_right = (field.index((r, cols - 1)) - field.index((r, cols - 2))) / dx;
 
-    //     *(df_dx.index_mut((r, 0))) = dfi_dx_left;
-    //     *(df_dx.index_mut((r, cols - 1))) = dfi_dx_right;
-    // }
+        *(df_dx.index_mut((r, 0))) = dfi_dx_left;
+        *(df_dx.index_mut((r, cols - 1))) = dfi_dx_right;
+    }
 
     df_dx
 }
@@ -105,13 +105,13 @@ fn gradeint_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> 
     }
 
     // set edge nodes
-    // for c in 0..cols {
-    //     let dui_dy_left = (field.index((1, c)) - field.index((0, c))) / dy;
-    //     let dui_dy_right = (field.index((rows - 1, c)) - field.index((rows - 2, c))) / dy;
+    for c in 0..cols {
+        let dui_dy_left = (field.index((1, c)) - field.index((0, c))) / dy;
+        let dui_dy_right = (field.index((rows - 1, c)) - field.index((rows - 2, c))) / dy;
 
-    //     *(df_dy.index_mut((0, c))) = dui_dy_left;
-    //     *(df_dy.index_mut((rows - 1, c))) = dui_dy_right;
-    // }
+        *(df_dy.index_mut((0, c))) = dui_dy_left;
+        *(df_dy.index_mut((rows - 1, c))) = dui_dy_right;
+    }
 
     df_dy
 }
