@@ -1,7 +1,7 @@
 use na::DMatrix;
 use rand::{Rng, rngs::ThreadRng};
 
-use crate::{ScalarField, VectorField, numeric, poission};
+use crate::{sim::{numeric, poission}, ScalarField, VectorField};
 
 const MAX_VELOCITY: f32 = 1000.;
 

@@ -7,19 +7,19 @@ use std::{
 
 extern crate nalgebra as na;
 
-mod display;
-mod numeric;
-mod poission;
-mod preprocessor;
 mod sim;
+mod preprocessing;
+mod postprocessing;
 
 use clap::Parser;
-use display::DisplayPacket;
+use postprocessing::display::DisplayPacket;
 use indicatif::{ProgressBar, ProgressStyle};
 use na::DMatrix;
 use num_traits::Zero;
 use tracing::{Level, debug, error, info, warn};
 use tracing_subscriber::{self, fmt::format::FmtSpan};
+
+use crate::{postprocessing::display, preprocessing::preprocessor, sim::sim::NewtonianSim};
 
 type ScalarField = DMatrix<f32>;
 type VectorField = [ScalarField; 2];
@@ -81,7 +81,7 @@ fn main() {
         debug!("Sucessfully created mask from image");
     } else {
         warn!("Using example shape mask.");
-        mask = sim::NewtonianSim::sample_shape_mask(200, 200);
+        mask = NewtonianSim::sample_shape_mask(200, 200);
     }
 
     let (sender, receiver) = mpsc::channel();
@@ -93,7 +93,7 @@ fn main() {
 
     let simtime = args.simtime;
 
-    let sim = sim::NewtonianSim::new(1., 0.002, (8., 0.), &mask, (5., 5.), simtime, 1.);
+    let sim = NewtonianSim::new(1., 0.002, (8., 0.), &mask, (5., 5.), simtime, 1.);
 
     // let mut pbar = ProgressBar::new((simtime*100.).floor() as u64);
     let mut iter_count = 0; // note, this will be nonlinear-timing rn
