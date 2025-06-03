@@ -13,8 +13,6 @@ use image::{DynamicImage, GenericImageView, imageops::FilterType};
 use minifb::{Key, Window, WindowOptions};
 use screen_size::get_primary_screen_size as get_screen_size;
 
-use crate::FRAMES_PATH;
-
 #[derive(Clone)]
 pub struct DisplayPacket {
     pub velocity_x: DMatrix<f32>,
@@ -22,10 +20,14 @@ pub struct DisplayPacket {
     pub i: usize,
 }
 
-pub fn image_save(bitmap: &DMatrix<f32>, filename: &str) -> Result<(), Box<dyn Error>> {
+pub fn image_save(
+    bitmap: &DMatrix<f32>,
+    filename: &str,
+    frames_dir: &Path,
+) -> Result<(), Box<dyn Error>> {
     let (rows, cols) = bitmap.shape();
 
-    let filename = FRAMES_PATH.join(filename);
+    let filename = frames_dir.join(filename);
 
     let root = BitMapBackend::new(&filename, (cols as u32, rows as u32)).into_drawing_area();
     root.fill(&WHITE)?;
@@ -46,11 +48,14 @@ pub fn image_save(bitmap: &DMatrix<f32>, filename: &str) -> Result<(), Box<dyn E
     Ok(())
 }
 
-pub fn image_io_loop(inbound_bitmaps: mpsc::Receiver<DisplayPacket>) -> Result<(), Box<dyn Error>> {
-    if (*FRAMES_PATH).exists() {
-        fs::remove_dir_all(*FRAMES_PATH)?;
+pub fn image_io_loop(
+    inbound_bitmaps: mpsc::Receiver<DisplayPacket>,
+    frames_dir: &Path,
+) -> Result<(), Box<dyn Error>> {
+    if (frames_dir).exists() {
+        fs::remove_dir_all(frames_dir)?;
     }
-    fs::create_dir(*FRAMES_PATH)?;
+    fs::create_dir(frames_dir)?;
 
     loop {
         // read inbound packet
@@ -63,8 +68,12 @@ pub fn image_io_loop(inbound_bitmaps: mpsc::Receiver<DisplayPacket>) -> Result<(
             + inbound.velocity_y.map(|y| y.powi(2)))
         .map(|k| k.sqrt());
 
-        image_save(&velocity_magnitude, format!("{}.png", inbound.i).as_str())
-            .expect("Image save failed");
+        image_save(
+            &velocity_magnitude,
+            format!("{}.png", inbound.i).as_str(),
+            frames_dir,
+        )
+        .expect("Image save failed");
     }
 }
 

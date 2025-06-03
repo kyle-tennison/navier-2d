@@ -1,5 +1,6 @@
 use std::{
-    path::Path,
+    path::{Path, PathBuf},
+    process::exit,
     sync::{LazyLock, mpsc},
     thread,
 };
@@ -9,36 +10,87 @@ extern crate nalgebra as na;
 mod display;
 mod numeric;
 mod poission;
+mod preprocessor;
 mod sim;
 
+use clap::Parser;
 use display::DisplayPacket;
 use indicatif::{ProgressBar, ProgressStyle};
 use na::DMatrix;
 use num_traits::Zero;
+use tracing::{Level, debug, error, info, warn};
+use tracing_subscriber::{self, fmt::format::FmtSpan};
 
 type ScalarField = DMatrix<f32>;
 type VectorField = [ScalarField; 2];
 
-static FRAMES_PATH: LazyLock<&Path> = LazyLock::new(|| Path::new("sim-frames"));
+static DEFAULT_FRAMES_PATH: LazyLock<&Path> = LazyLock::new(|| Path::new("sim-frames2"));
+
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(short, long)]
+    frames_dir: Option<String>,
+
+    #[arg(short, long)]
+    show_video: bool,
+
+    #[arg(
+        help = "The path to a PNG image to use as the mask. White pixels will permit fluid flow, black pixels will be treated as solid."
+    )]
+    mask_path: Option<String>,
+}
 
 fn main() {
+    // setup logging
+    tracing_subscriber::fmt()
+        .with_span_events(FmtSpan::ENTER | FmtSpan::EXIT)
+        .with_ansi(true)
+        .with_max_level(Level::DEBUG)
+        .init();
+
+    let args = Args::parse();
+
+    let frames_path = args
+        .frames_dir
+        .map(PathBuf::from)
+        .unwrap_or((*DEFAULT_FRAMES_PATH).into());
+
+    debug!("Using frames path {:?}", frames_path);
+    debug!("Showing video? {:?}", args.show_video);
+
+    let mask: DMatrix<bool>;
+
+    if let Some(mask_path) = args.mask_path {
+        info!("Loading mask path {}...", &mask_path);
+        mask = match preprocessor::mask_from_image(PathBuf::from(&mask_path).as_path()) {
+            Ok(m) => m,
+            Err(err) => {
+                error!(
+                    "Failed to load mask from provided image {}, because: {}",
+                    mask_path, err
+                );
+                exit(1);
+            }
+        };
+        debug!("Sucessfully created mask from image");
+    } else {
+        warn!("Using example shape mask.");
+        mask = sim::NewtonianSim::sample_shape_mask(200, 200);
+    }
+
     let (sender, receiver) = mpsc::channel();
 
-    thread::spawn(|| {
-        display::image_io_loop(receiver).unwrap();
+    let frames_path_tread = frames_path.clone();
+    thread::spawn(move || {
+        display::image_io_loop(receiver, &frames_path_tread).unwrap();
     });
 
     let simtime = 15.00;
 
-    let sim = sim::NewtonianSim::new(
-        1.,
-        0.002,
-        (8., 0.),
-        &sim::NewtonianSim::sample_shape_mask(200, 200),
-        (5., 5.),
-        simtime,
-        1.,
-    );
+    let sim = sim::NewtonianSim::new(1., 0.002, (8., 0.), &mask, (5., 5.), simtime, 1.);
 
     // let mut pbar = ProgressBar::new((simtime*100.).floor() as u64);
     let mut iter_count = 0; // note, this will be nonlinear-timing rn
@@ -77,5 +129,5 @@ fn main() {
 
     println!("fps: {}; t={}", fps, t_outer);
 
-    display::play_video(fps, *FRAMES_PATH).unwrap();
+    display::play_video(fps, frames_path.as_path()).unwrap();
 }
