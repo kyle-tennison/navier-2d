@@ -41,6 +41,9 @@ struct Args {
         help = "The path to a PNG image to use as the mask. White pixels will permit fluid flow, black pixels will be treated as solid."
     )]
     mask_path: Option<String>,
+
+    #[arg(short, long, default_value="10")]
+    simtime: f32
 }
 
 fn main() {
@@ -88,7 +91,7 @@ fn main() {
         display::image_io_loop(receiver, &frames_path_tread).unwrap();
     });
 
-    let simtime = 15.00;
+    let simtime = args.simtime;
 
     let sim = sim::NewtonianSim::new(1., 0.002, (8., 0.), &mask, (5., 5.), simtime, 1.);
 
