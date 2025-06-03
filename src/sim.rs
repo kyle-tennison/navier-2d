@@ -1,4 +1,5 @@
 use na::DMatrix;
+use rand::{rngs::ThreadRng, Rng};
 
 use crate::{display::image_save, numeric, poission, ScalarField, VectorField};
 
@@ -18,7 +19,8 @@ pub struct NewtonianSim {
     pub t: f32,
     u: VectorField,
     f: VectorField,
-    i: usize
+    i: usize,
+    rng: ThreadRng
 }
 
 impl<'a> NewtonianSim {
@@ -47,6 +49,8 @@ impl<'a> NewtonianSim {
         let fx: DMatrix<f32> = DMatrix::zeros(rows, cols);
         let fy: DMatrix<f32> = DMatrix::zeros(rows, cols);
 
+        let rng = rand::rng();
+
         NewtonianSim {
             density,
             shear_viscosity,
@@ -62,13 +66,17 @@ impl<'a> NewtonianSim {
             u: [ux, uy],
             f: [fx, fy],
             i: 0,
+            rng
         }
     }
 
     /// Set the boundary values on the velocity field
     fn set_bv_u(&mut self) {
+
+        let velocity_noise: f32 = self.rng.random_range(0.0..0.1);
+
         // set inflow on left
-        self.u[0].columns_mut(0, 3).fill(self.inflow.0);
+        self.u[0].columns_mut(0, 3).fill(self.inflow.0 * (1.+velocity_noise));
         self.u[1].columns_mut(0, 3).fill(self.inflow.1);
 
         // set zero-derivative at outflow
