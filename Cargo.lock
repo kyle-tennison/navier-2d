@@ -1950,6 +1950,8 @@ dependencies = [
  "plotters",
  "rand 0.9.1",
  "screen_size",
+ "serde",
+ "serde_json",
  "tracing",
  "tracing-subscriber",
  "winit 0.30.11",

@@ -1,3 +1,3 @@
-pub mod sim;
 mod numeric;
 mod poission;
+pub mod sim;

@@ -20,25 +20,25 @@ impl SerialMask {
         }
     }
 
-    pub fn to_mask(&self) -> DMatrix<bool> {        
-        DMatrix::from_iterator(self.nrows, self.ncols, self.data.clone().into_iter().map(|b| b !=0 ))
+    pub fn to_mask(&self) -> DMatrix<bool> {
+        DMatrix::from_iterator(
+            self.nrows,
+            self.ncols,
+            self.data.clone().into_iter().map(|b| b != 0),
+        )
     }
 }
 
-
-
 #[cfg(test)]
-mod tests{
+mod tests {
     use na::DMatrix;
     use rand::Rng;
     use serde::Serialize;
 
     use crate::preprocessing::serial_mask::{self, SerialMask};
 
-
     #[test]
-    pub fn test_save_load(){
-
+    pub fn test_save_load() {
         let mut rng = rand::rng();
 
         let origional_mask: DMatrix<bool> = DMatrix::from_fn(5, 5, |_, _| rng.random_bool(0.5));
@@ -54,9 +54,5 @@ mod tests{
         let final_mask = deserialized.to_mask();
 
         assert_eq!(origional_mask, final_mask);
-
-
-
     }
-
 }
