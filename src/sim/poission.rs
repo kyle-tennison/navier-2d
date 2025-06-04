@@ -35,7 +35,7 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
     let mut a_coo: CooMatrix<f32> = CooMatrix::new(rows * cols, rows * cols);
     let mut field_flat: DVector<f32> = DVector::from_row_slice(field.as_slice());
 
-    let ij_to_k = { |(i, j): (i32, i32)| (i + j * (cols as i32)) as usize };
+    let ij_to_k = { |(i, j): (i32, i32)| (i + j * (rows as i32)) as usize };
 
     for i in 0..rows {
         for j in 0..cols {
