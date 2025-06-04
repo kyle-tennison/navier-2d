@@ -7,15 +7,48 @@ use std::{
 
 use image::{DynamicImage, GenericImageView, imageops::FilterType};
 use minifb::{Key, Window, WindowOptions};
+use ndarray::Array1;
 use screen_size::get_primary_screen_size as get_screen_size;
+use tracing::error;
 
-pub fn play_video(fps: usize, frames_dir: &Path) -> Result<(), Box<dyn Error>> {
-    // collect & sort frame paths
+pub fn play_video(
+    elapsed_time: f32,
+    fps: usize,
+    temporal_map: &Vec<f32>,
+    frames_dir: &Path,
+) -> Result<(), Box<dyn Error>> {
+    let total_frames = (elapsed_time * (fps as f32)).floor() as usize;
+    let mut desired_frames: Vec<usize> = Vec::with_capacity(total_frames);
+
+    for t in Array1::linspace(0., elapsed_time, total_frames) {
+        desired_frames.push(
+            temporal_map.iter().position(|&f| f >= t).unwrap()
+        );
+    }
+
+    // dont look at this
     let mut paths: Vec<_> = fs::read_dir(frames_dir)?
         .filter_map(Result::ok)
+        .filter(|entry| {
+            let path = entry.path();
+            let idx = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .and_then(|f| f.parse::<usize>().ok());
+
+            desired_frames.iter().any(|f: &usize| {
+                if let Some(idx) = idx {
+                    if *f == idx {
+                        return true;
+                    }
+                };
+                false
+            })
+        })
         .map(|e| e.path())
         .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("png"))
         .collect();
+
     paths.sort_by_key(|p| {
         p.file_stem()
             .and_then(|s| s.to_str())

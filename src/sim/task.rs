@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     sync::mpsc,
     thread::{self, JoinHandle},
 };
@@ -12,7 +13,7 @@ use crate::{
 };
 
 pub struct TaskOutput {
-    pub total_iter: usize,
+    pub temporal_map: Vec<f32>, // maps idx->timestamp
 }
 
 pub fn imgstream_task(
@@ -33,11 +34,12 @@ pub fn imgstream_task(
 
     // spawn image io thread
     let settings_clone = (*settings).clone();
+    let mask_clone = simulation_input.get_mask().clone();
     thread::spawn(move || {
-        imgstream::image_io_loop(receiver, &settings_clone.frames_dir).unwrap();
+        imgstream::image_io_loop(receiver, mask_clone, &settings_clone.frames_dir).unwrap();
     });
 
-    let mut total_iter = 0;
+    let mut temporal_map: Vec<f32> = Vec::new();
     for (i, (u, t)) in sim.enumerate() {
         let (ux, uy) = (u[0].to_owned(), u[1].to_owned());
 
@@ -51,10 +53,10 @@ pub fn imgstream_task(
 
         let progress = ((t / simulation_input.simulation_time) * 10_000.0).round() as u64;
         bar.set_position(progress);
-        total_iter += 1;
+        temporal_map.push(t);
     }
 
-    TaskOutput { total_iter }
+    TaskOutput { temporal_map }
 }
 
 pub fn spawn_sim_thread(simulation_input: SimulationInput) -> JoinHandle<TaskOutput> {

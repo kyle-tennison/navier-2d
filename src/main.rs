@@ -41,9 +41,13 @@ fn main() {
         let output = sim_thread.join().expect("Sim thread panicked");
 
         if settings.display_video {
-            let mut fps = (output.total_iter as f32 / sim_input.simulation_time).floor() as usize;
-            fps.is_zero().then(|| fps += 1);
-            display::play_video(fps, &settings.frames_dir).unwrap();
+            display::play_video(
+                sim_input.simulation_time,
+                60,
+                &output.temporal_map,
+                &settings.frames_dir,
+            )
+            .unwrap();
         }
 
         if !settings.retain_frames {
