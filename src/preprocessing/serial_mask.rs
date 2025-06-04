@@ -33,9 +33,9 @@ impl SerialMask {
 mod tests {
     use na::DMatrix;
     use rand::Rng;
-    use serde::Serialize;
+    
 
-    use crate::preprocessing::serial_mask::{self, SerialMask};
+    use crate::preprocessing::serial_mask::SerialMask;
 
     #[test]
     pub fn test_save_load() {

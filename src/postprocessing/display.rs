@@ -2,11 +2,9 @@ use std::{
     error::Error,
     fs,
     path::Path,
-    sync::mpsc,
     time::{Duration, Instant},
 };
 
-use na::DMatrix;
 use plotters::prelude::*;
 
 use image::{DynamicImage, GenericImageView, imageops::FilterType};

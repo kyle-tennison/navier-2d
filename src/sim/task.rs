@@ -8,7 +8,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use crate::{
     observers::imgstream::{self, DisplayPacket},
     preprocessing::{ImageStreamSettings, InterfaceMode, SimulationInput},
-    sim::sim::NewtonianSim,
+    sim::navier::Navier,
 };
 
 pub struct TaskOutput {
@@ -17,7 +17,7 @@ pub struct TaskOutput {
 
 pub fn imgstream_task(
     settings: &ImageStreamSettings,
-    sim: NewtonianSim,
+    sim: Navier,
     simulation_input: &SimulationInput,
 ) -> TaskOutput {
     let bar = ProgressBar::new(10_000);
@@ -54,12 +54,12 @@ pub fn imgstream_task(
         total_iter += 1;
     }
 
-    return TaskOutput { total_iter };
+    TaskOutput { total_iter }
 }
 
 pub fn spawn_sim_thread(simulation_input: SimulationInput) -> JoinHandle<TaskOutput> {
     thread::spawn(move || {
-        let sim = NewtonianSim::new(
+        let sim = Navier::new(
             simulation_input.density,
             simulation_input.viscosity,
             simulation_input.inflow,

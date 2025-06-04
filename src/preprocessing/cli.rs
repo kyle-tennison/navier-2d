@@ -8,12 +8,11 @@ use std::{
 
 use clap::{Parser, command};
 use na::DMatrix;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
-use crate::preprocessing::{
-    ImageStreamSettings, InterfaceMode, SimulationInput, WebStreamSettings,
-    preprocessor::mask_from_image, serial_mask::SerialMask,
-};
+use crate::{preprocessing::{
+    preprocessor::mask_from_image, serial_mask::SerialMask, ImageStreamSettings, InterfaceMode, SimulationInput, WebStreamSettings
+}, sim::navier::Navier};
 
 static DEFAULT_FRAMES_PATH: LazyLock<&Path> = LazyLock::new(|| Path::new("sim-frames2"));
 
@@ -118,7 +117,7 @@ impl CliArgs {
 
             if loaded_input.mask.is_none() {
                 if let Some(mask_path) = &self.mask_path {
-                    let mask: DMatrix<bool> = mask_from_image(&mask_path)
+                    let mask: DMatrix<bool> = mask_from_image(mask_path)
                         .inspect_err(|f| {
                             error!("{:?}", f);
                             exit(1);
@@ -126,6 +125,9 @@ impl CliArgs {
                         .unwrap();
                     loaded_input.mask = Some(SerialMask::from_mask(&mask));
                 } else {
+                    warn!("No mask was provided, using the default.");
+                    loaded_input.mask = Some(SerialMask::from_mask(&Navier::sample_shape_mask(100, 100)));
+
                     error!(
                         "The provided input file does not define a mask; this must be provided with the `--mask-path <png>` argument."
                     );
@@ -162,7 +164,7 @@ impl CliArgs {
 
             let mask: SerialMask;
             if let Some(mask_path) = &self.mask_path {
-                let na_mask: DMatrix<bool> = mask_from_image(&mask_path)
+                let na_mask: DMatrix<bool> = mask_from_image(mask_path)
                     .inspect_err(|f| {
                         error!("{:?}", f);
                         exit(1);
@@ -170,8 +172,8 @@ impl CliArgs {
                     .unwrap();
                 mask = SerialMask::from_mask(&na_mask);
             } else {
-                error!("A png file depicting the solid object needs to be provided.");
-                exit(1);
+                warn!("No mask was provided, using the default.");
+                mask = SerialMask::from_mask(&Navier::sample_shape_mask(100, 100));
             }
 
             SimulationInput {
@@ -186,12 +188,15 @@ impl CliArgs {
             }
         };
 
-
-        if let Some(save_path) = &self.input_json_savepath{
-            let save_file = File::create_new(save_path).inspect_err(|err| error!("Failed to save input configuration: {:?}", err)).unwrap();
+        if let Some(save_path) = &self.input_json_savepath {
+            let save_file = File::create_new(save_path)
+                .inspect_err(|err| error!("Failed to save input configuration: {:?}", err))
+                .unwrap();
 
             let writer = BufWriter::new(save_file);
-            serde_json::to_writer(writer, &input).inspect_err(|err| error!("Failed to save input configuration: {:?}", err)).unwrap();
+            serde_json::to_writer(writer, &input)
+                .inspect_err(|err| error!("Failed to save input configuration: {:?}", err))
+                .unwrap();
         }
 
         input

@@ -1,10 +1,4 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    process::exit,
-    sync::{LazyLock, mpsc},
-    thread,
-};
+use std::fs;
 
 extern crate nalgebra as na;
 
@@ -14,16 +8,15 @@ mod preprocessing;
 mod sim;
 
 use clap::Parser;
-use indicatif::{ProgressBar, ProgressStyle};
 use na::DMatrix;
 use num_traits::Zero;
-use tracing::{Level, debug, error, info, warn};
+use tracing::{Level, warn};
 use tracing_subscriber::{self, fmt::format::FmtSpan};
 
 use crate::{
     postprocessing::display,
-    preprocessing::{InterfaceMode, cli::CliArgs, preprocessor},
-    sim::{sim::NewtonianSim, task::spawn_sim_thread},
+    preprocessing::{InterfaceMode, cli::CliArgs},
+    sim::task::spawn_sim_thread,
 };
 
 type ScalarField = DMatrix<f32>;
@@ -43,23 +36,20 @@ fn main() {
 
     let sim_thread = spawn_sim_thread(sim_input.clone());
 
-    match sim_input.mode {
-        InterfaceMode::ImageStream(settings) => {
-            let output = sim_thread.join().expect("Sim thread panicked");
+    if let InterfaceMode::ImageStream(settings) = sim_input.mode {
+        let output = sim_thread.join().expect("Sim thread panicked");
 
-            if settings.display_video {
-                let mut fps =
-                    (output.total_iter as f32 / sim_input.simulation_time).floor() as usize;
-                fps.is_zero().then(|| fps += 1);
-                display::play_video(fps, &settings.frames_dir).unwrap();
-            }
-
-            if !settings.retain_frames {
-                _ = fs::remove_dir_all(settings.frames_dir)
-                    .inspect_err(|err| warn!("Unable to cleanup frames output: {:?}", err));
-            }
+        if settings.display_video {
+            let mut fps =
+                (output.total_iter as f32 / sim_input.simulation_time).floor() as usize;
+            fps.is_zero().then(|| fps += 1);
+            display::play_video(fps, &settings.frames_dir).unwrap();
         }
-        _ => (),
+
+        if !settings.retain_frames {
+            _ = fs::remove_dir_all(settings.frames_dir)
+                .inspect_err(|err| warn!("Unable to cleanup frames output: {:?}", err));
+        }
     };
 
     todo!();
@@ -91,7 +81,7 @@ fn main() {
     //     debug!("Sucessfully created mask from image");
     // } else {
     //     warn!("Using example shape mask.");
-    //     mask = NewtonianSim::sample_shape_mask(200, 200);
+    //     mask = Navier::sample_shape_mask(200, 200);
     // }
 
     // let (sender, receiver) = mpsc::channel();
@@ -103,7 +93,7 @@ fn main() {
 
     // let simtime = args.simtime;
 
-    // let sim = NewtonianSim::new(1., 0.002, (8., 0.), &mask, (5., 5.), simtime, 1.);
+    // let sim = Navier::new(1., 0.002, (8., 0.), &mask, (5., 5.), simtime, 1.);
 
     // // let mut pbar = ProgressBar::new((simtime*100.).floor() as u64);
     // let mut iter_count = 0; // note, this will be nonlinear-timing rn
