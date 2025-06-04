@@ -1,8 +1,5 @@
 use std::{
-    path::{Path, PathBuf},
-    process::exit,
-    sync::{LazyLock, mpsc},
-    thread,
+    fs, path::{Path, PathBuf}, process::exit, sync::{mpsc, LazyLock}, thread
 };
 
 extern crate nalgebra as na;
@@ -16,11 +13,14 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use na::DMatrix;
 use num_traits::Zero;
-use postprocessing::display::DisplayPacket;
 use tracing::{Level, debug, error, info, warn};
 use tracing_subscriber::{self, fmt::format::FmtSpan};
 
-use crate::{postprocessing::display, preprocessing::{cli::CliArgs, preprocessor}, sim::sim::NewtonianSim};
+use crate::{
+    postprocessing::display,
+    preprocessing::{InterfaceMode, cli::CliArgs, preprocessor},
+    sim::{sim::NewtonianSim, task::spawn_sim_thread},
+};
 
 type ScalarField = DMatrix<f32>;
 type VectorField = [ScalarField; 2];
@@ -37,7 +37,25 @@ fn main() {
     let args = CliArgs::parse();
     let sim_input = args.crate_input();
 
+    let sim_thread = spawn_sim_thread(sim_input.clone());
 
+    match sim_input.mode {
+        InterfaceMode::ImageStream(settings) => {
+            let output = sim_thread.join().expect("Sim thread panicked");
+
+            if settings.display_video {
+                let mut fps =
+                    (output.total_iter as f32 / sim_input.simulation_time).floor() as usize;
+                fps.is_zero().then(|| fps += 1);
+                display::play_video(fps, &settings.frames_dir).unwrap();
+            }
+
+            if !settings.retain_frames {
+                _ = fs::remove_dir_all(settings.frames_dir).inspect_err(|err| warn!("Unable to cleanup frames output: {:?}", err));
+            }
+        }
+        _ => (),
+    };
 
     todo!();
 
@@ -75,7 +93,7 @@ fn main() {
 
     // let frames_path_tread = frames_path.clone();
     // thread::spawn(move || {
-    //     display::image_io_loop(receiver, &frames_path_tread).unwrap();
+    //     imgstream::image_io_loop(receiver, &frames_path_tread).unwrap();
     // });
 
     // let simtime = args.simtime;
@@ -112,12 +130,4 @@ fn main() {
     //     let progress = ((t / simtime) * 10_000.0).round() as u64;
     //     bar.set_position(progress);
     // }
-
-    // let mut fps = (iter_count as f32 / simtime).floor() as usize;
-
-    // fps.is_zero().then(|| fps += 1);
-
-    // println!("fps: {}; t={}", fps, t_outer);
-
-    // display::play_video(fps, frames_path.as_path()).unwrap();
 }

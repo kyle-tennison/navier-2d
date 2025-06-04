@@ -11,7 +11,8 @@ use na::DMatrix;
 use tracing::{error, info};
 
 use crate::preprocessing::{
-    preprocessor::mask_from_image, serial_mask::SerialMask, ImageStreamSettings, InterfaceMode, SimulationInput, WebStreamSettings
+    ImageStreamSettings, InterfaceMode, SimulationInput, WebStreamSettings,
+    preprocessor::mask_from_image, serial_mask::SerialMask,
 };
 
 static DEFAULT_FRAMES_PATH: LazyLock<&Path> = LazyLock::new(|| Path::new("sim-frames2"));
@@ -20,7 +21,11 @@ static DEFAULT_FRAMES_PATH: LazyLock<&Path> = LazyLock::new(|| Path::new("sim-fr
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct CliArgs {
-    #[arg(short, long, help = "An input file with pre-loaded parameters.")]
+
+    #[arg(help = "The path to a PNG image to use as the solid object.")]
+    mask_path: Option<PathBuf>,
+
+    #[arg(long, help = "An input file with pre-loaded parameters.")]
     input_json: Option<PathBuf>,
 
     #[arg(
@@ -54,25 +59,34 @@ pub struct CliArgs {
     )]
     display_video: bool,
 
-    #[arg(
-        help = "The path to a PNG image to use as the mask. White pixels will permit fluid flow, black pixels will be treated as solid."
-    )]
-    mask_path: Option<PathBuf>,
-
-    #[arg(long, help="Inflow x velocity.", default_value="8.0")]
+    #[arg(long, help = "Inflow x velocity.", default_value = "8.0")]
     inflow_x: f32,
 
-    #[arg(long, help="Inflow y velocity.", default_value="0.0")]
+    #[arg(long, help = "Inflow y velocity.", default_value = "0.0")]
     inflow_y: f32,
 
-    #[arg(short, long, default_value = "10", help="Simulation time in seconds.")]
+    #[arg(long, help = "Domain length in x axis.", default_value = "5.0")]
+    length_x: f32,
+
+    #[arg(long, help = "Domain length in y axis.", default_value = "5.0")]
+    length_y: f32,
+
+    #[arg(
+        short,
+        long,
+        default_value = "10",
+        help = "Simulation time in seconds."
+    )]
     simtime: f32,
 
-    #[arg(long, default_value="1.0", help="Fluid density in g/ml")]
+    #[arg(long, default_value = "1.0", help = "Fluid density in g/ml")]
     density: f32,
 
-    #[arg(long, default_value="0.002", help="Shear viscosity")]
+    #[arg(long, default_value = "0.002", help = "Shear viscosity")]
     viscosity: f32,
+
+    #[arg(long, default_value = "1.0", help = "Maximum CFL")]
+    cfl: f32,
 }
 
 impl CliArgs {
@@ -112,8 +126,7 @@ impl CliArgs {
                         })
                         .unwrap();
                     loaded_input.mask = Some(SerialMask::from_mask(&mask));
-                }
-                else {
+                } else {
                     error!(
                         "The provided input file does not define a mask; this must be provided with the `--mask-path <png>` argument."
                     );
@@ -149,7 +162,6 @@ impl CliArgs {
             }
         };
 
-
         let mask: SerialMask;
         if let Some(mask_path) = &self.mask_path {
             let na_mask: DMatrix<bool> = mask_from_image(&mask_path)
@@ -159,21 +171,20 @@ impl CliArgs {
                 })
                 .unwrap();
             mask = SerialMask::from_mask(&na_mask);
-        }
-        else {
-            error!(
-                "A png file depicting the solid object needs to be provided."
-            );
+        } else {
+            error!("A png file depicting the solid object needs to be provided.");
             exit(1);
         }
 
-        SimulationInput{
+        SimulationInput {
             mask: Some(mask),
             mode,
             simulation_time: self.simtime,
             inflow: (self.inflow_x, self.inflow_y),
             density: self.density,
             viscosity: self.viscosity,
+            length: (self.length_x, self.length_y),
+            cfl: self.cfl,
         }
     }
 }

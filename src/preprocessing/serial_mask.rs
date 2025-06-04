@@ -1,7 +1,7 @@
 use na::DMatrix;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SerialMask {
     data: Vec<u8>,
     nrows: usize,
