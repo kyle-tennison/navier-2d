@@ -33,7 +33,6 @@ impl SerialMask {
 mod tests {
     use na::DMatrix;
     use rand::Rng;
-    
 
     use crate::preprocessing::serial_mask::SerialMask;
 

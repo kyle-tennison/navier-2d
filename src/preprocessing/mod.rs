@@ -17,7 +17,6 @@ pub struct ImageStreamSettings {
     pub display_video: bool,
 }
 
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct WebStreamSettings {}
 
@@ -47,9 +46,10 @@ impl SimulationInput {
     }
 }
 
-impl SimulationInput{
+impl SimulationInput {
     pub fn log(&self) {
-        info!("Simulation is shown below:\n\n\
+        info!(
+            "Simulation is shown below:\n\n\
         \t mode:       {}\n\
         \t time range: {} s\n\
         \t inflow:     < {} m/s, {} m/s >\n\
@@ -57,23 +57,20 @@ impl SimulationInput{
         \t viscosity:  {} mPa s \n\
         \t length:     <{} m, {} m > \n\
         \t CFL:        {} (max)\n\n\
-        ", 
-        any::type_name_of_val(&self.mode),
-        self.simulation_time,
-        self.inflow.0,
-        self.inflow.1,
-        self.density,
-        self.viscosity,
-        self.length.0,
-        self.length.1,
-        self.cfl,
+        ",
+            any::type_name_of_val(&self.mode),
+            self.simulation_time,
+            self.inflow.0,
+            self.inflow.1,
+            self.density,
+            self.viscosity,
+            self.length.0,
+            self.length.1,
+            self.cfl,
         );
 
         let mode_str = serde_json::to_string_pretty(&self.mode).unwrap();
 
-
         info!("Mode parameters are:\n\n{}", mode_str);
-
     }
-
 }

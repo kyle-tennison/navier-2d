@@ -10,9 +10,13 @@ use clap::{Parser, command};
 use na::DMatrix;
 use tracing::{error, info, warn};
 
-use crate::{preprocessing::{
-    preprocessor::mask_from_image, serial_mask::SerialMask, ImageStreamSettings, InterfaceMode, SimulationInput, WebStreamSettings
-}, sim::navier::Navier};
+use crate::{
+    preprocessing::{
+        ImageStreamSettings, InterfaceMode, SimulationInput, WebStreamSettings,
+        preprocessor::mask_from_image, serial_mask::SerialMask,
+    },
+    sim::navier::Navier,
+};
 
 static DEFAULT_FRAMES_PATH: LazyLock<&Path> = LazyLock::new(|| Path::new("sim-frames2"));
 
@@ -127,7 +131,8 @@ impl CliArgs {
                     loaded_input.mask = Some(SerialMask::from_mask(&mask));
                 } else {
                     warn!("No mask was provided, using the default.");
-                    loaded_input.mask = Some(SerialMask::from_mask(&Navier::sample_shape_mask(100, 100)));
+                    loaded_input.mask =
+                        Some(SerialMask::from_mask(&Navier::sample_shape_mask(100, 100)));
 
                     error!(
                         "The provided input file does not define a mask; this must be provided with the `--mask-path <png>` argument."
