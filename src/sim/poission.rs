@@ -8,7 +8,7 @@ use nalgebra_sparse::{CooMatrix, CsrMatrix};
 use crate::ScalarField;
 
 pub const TARGET_CG_COST: f32 = 1e-4; // maximum error in conjugate-gradient solve
-pub const MAX_CG_ITER: u64 = 10_000; // maximum number of iterations for conjugate-gradient
+pub const MAX_CG_ITER: u64 = 100_000; // maximum number of iterations for conjugate-gradient
 
 /// Runs multiplication for Conjugate Gradient Solver
 struct ConjugateGradientOperator<'a> {

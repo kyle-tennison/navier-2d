@@ -1,11 +1,14 @@
 use na::DMatrix;
 use rand::{Rng, rngs::ThreadRng};
 
-use crate::{ScalarField, VectorField, numeric, poission};
+use crate::{
+    ScalarField, VectorField,
+    sim::{numeric, poission},
+};
 
 const MAX_VELOCITY: f32 = 1000.;
 
-pub struct NewtonianSim {
+pub struct Navier {
     pub density: f32,
     pub shear_viscosity: f32,
     pub inflow: (f32, f32), // (x,y)
@@ -23,7 +26,7 @@ pub struct NewtonianSim {
     rng: ThreadRng,
 }
 
-impl NewtonianSim {
+impl Navier {
     /// Create a new Newtonian fluid simulation instance
     ///
     /// Parameters
@@ -51,7 +54,7 @@ impl NewtonianSim {
 
         let rng = rand::rng();
 
-        NewtonianSim {
+        Navier {
             density,
             shear_viscosity,
             inflow,
@@ -141,7 +144,7 @@ impl NewtonianSim {
     }
 }
 
-impl Iterator for NewtonianSim {
+impl Iterator for Navier {
     type Item = (VectorField, f32);
 
     fn next(&mut self) -> Option<Self::Item> {
