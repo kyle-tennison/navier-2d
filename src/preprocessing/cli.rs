@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::BufReader,
+    io::{BufReader, BufWriter},
     path::{Path, PathBuf},
     process::exit,
     sync::LazyLock,
@@ -21,7 +21,6 @@ static DEFAULT_FRAMES_PATH: LazyLock<&Path> = LazyLock::new(|| Path::new("sim-fr
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct CliArgs {
-
     #[arg(help = "The path to a PNG image to use as the solid object.")]
     mask_path: Option<PathBuf>,
 
@@ -92,7 +91,7 @@ pub struct CliArgs {
 impl CliArgs {
     pub fn crate_input(&self) -> SimulationInput {
         // if the input file is supplied, just use that
-        if let Some(input_filepath) = &self.input_json {
+        let input = if let Some(input_filepath) = &self.input_json {
             if !input_filepath.exists() {
                 error!("Input file {:?} does not exist.", input_filepath)
             }
@@ -134,57 +133,67 @@ impl CliArgs {
                 }
             }
 
-            return loaded_input;
-        }
+            loaded_input
+        } else {
+            // otherwise, build the input from the other arguments
+            let mode = match self.mode.as_str() {
+                "video" => {
+                    let frames_dir = self
+                        .frames_dir
+                        .as_ref()
+                        .map(PathBuf::from)
+                        .unwrap_or((*DEFAULT_FRAMES_PATH).into());
 
-        // otherwise, build the input from the other arguments
-        let mode = match self.mode.as_str() {
-            "video" => {
-                let frames_dir = self
-                    .frames_dir
-                    .as_ref()
-                    .map(PathBuf::from)
-                    .unwrap_or((*DEFAULT_FRAMES_PATH).into());
+                    InterfaceMode::ImageStream(ImageStreamSettings {
+                        frames_dir,
+                        retain_frames: self.retain_frames,
+                        display_video: self.display_video,
+                    })
+                }
+                "stream" => InterfaceMode::WebStream(WebStreamSettings {}),
+                _ => {
+                    error!(
+                        "'{}' is not a valid interface mode. Use --help for info.",
+                        self.mode
+                    );
+                    exit(1);
+                }
+            };
 
-                InterfaceMode::ImageStream(ImageStreamSettings {
-                    frames_dir,
-                    retain_frames: self.retain_frames,
-                    display_video: self.display_video,
-                })
-            }
-            "stream" => InterfaceMode::WebStream(WebStreamSettings {}),
-            _ => {
-                error!(
-                    "'{}' is not a valid interface mode. Use --help for info.",
-                    self.mode
-                );
+            let mask: SerialMask;
+            if let Some(mask_path) = &self.mask_path {
+                let na_mask: DMatrix<bool> = mask_from_image(&mask_path)
+                    .inspect_err(|f| {
+                        error!("{:?}", f);
+                        exit(1);
+                    })
+                    .unwrap();
+                mask = SerialMask::from_mask(&na_mask);
+            } else {
+                error!("A png file depicting the solid object needs to be provided.");
                 exit(1);
+            }
+
+            SimulationInput {
+                mask: Some(mask),
+                mode,
+                simulation_time: self.simtime,
+                inflow: (self.inflow_x, self.inflow_y),
+                density: self.density,
+                viscosity: self.viscosity,
+                length: (self.length_x, self.length_y),
+                cfl: self.cfl,
             }
         };
 
-        let mask: SerialMask;
-        if let Some(mask_path) = &self.mask_path {
-            let na_mask: DMatrix<bool> = mask_from_image(&mask_path)
-                .inspect_err(|f| {
-                    error!("{:?}", f);
-                    exit(1);
-                })
-                .unwrap();
-            mask = SerialMask::from_mask(&na_mask);
-        } else {
-            error!("A png file depicting the solid object needs to be provided.");
-            exit(1);
+
+        if let Some(save_path) = &self.input_json_savepath{
+            let save_file = File::create_new(save_path).inspect_err(|err| error!("Failed to save input configuration: {:?}", err)).unwrap();
+
+            let writer = BufWriter::new(save_file);
+            serde_json::to_writer(writer, &input).inspect_err(|err| error!("Failed to save input configuration: {:?}", err)).unwrap();
         }
 
-        SimulationInput {
-            mask: Some(mask),
-            mode,
-            simulation_time: self.simtime,
-            inflow: (self.inflow_x, self.inflow_y),
-            density: self.density,
-            viscosity: self.viscosity,
-            length: (self.length_x, self.length_y),
-            cfl: self.cfl,
-        }
+        input
     }
 }

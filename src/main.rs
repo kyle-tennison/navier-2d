@@ -1,5 +1,9 @@
 use std::{
-    fs, path::{Path, PathBuf}, process::exit, sync::{mpsc, LazyLock}, thread
+    fs,
+    path::{Path, PathBuf},
+    process::exit,
+    sync::{LazyLock, mpsc},
+    thread,
 };
 
 extern crate nalgebra as na;
@@ -51,7 +55,8 @@ fn main() {
             }
 
             if !settings.retain_frames {
-                _ = fs::remove_dir_all(settings.frames_dir).inspect_err(|err| warn!("Unable to cleanup frames output: {:?}", err));
+                _ = fs::remove_dir_all(settings.frames_dir)
+                    .inspect_err(|err| warn!("Unable to cleanup frames output: {:?}", err));
             }
         }
         _ => (),
