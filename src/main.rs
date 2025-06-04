@@ -33,6 +33,7 @@ fn main() {
     // read args
     let args = CliArgs::parse();
     let sim_input = args.crate_input();
+    sim_input.log();
 
     let sim_thread = spawn_sim_thread(sim_input.clone());
 

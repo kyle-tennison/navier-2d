@@ -53,7 +53,8 @@ pub struct CliArgs {
     #[arg(
         short,
         long,
-        help = "Whether the frame animation should play after solving. Disabled if streaming."
+        help = "Whether the frame animation should play after solving. Disabled if streaming.",
+        default_value = "true"
     )]
     display_video: bool,
 
@@ -119,7 +120,7 @@ impl CliArgs {
                 if let Some(mask_path) = &self.mask_path {
                     let mask: DMatrix<bool> = mask_from_image(mask_path)
                         .inspect_err(|f| {
-                            error!("{:?}", f);
+                            error!("Unable to create mask from image: {}", f);
                             exit(1);
                         })
                         .unwrap();
@@ -166,7 +167,7 @@ impl CliArgs {
             if let Some(mask_path) = &self.mask_path {
                 let na_mask: DMatrix<bool> = mask_from_image(mask_path)
                     .inspect_err(|f| {
-                        error!("{:?}", f);
+                        error!("Unable to create mask from image: {}", f);
                         exit(1);
                     })
                     .unwrap();

@@ -5,8 +5,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use plotters::prelude::*;
-
 use image::{DynamicImage, GenericImageView, imageops::FilterType};
 use minifb::{Key, Window, WindowOptions};
 use screen_size::get_primary_screen_size as get_screen_size;
