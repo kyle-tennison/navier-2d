@@ -85,7 +85,7 @@ pub fn gradient_y(field: &ScalarField, dy: f32) -> ScalarField {
 ///
 /// Returns:
 /// - A `ScalarField` with the x-gradient of each element
-fn gradeint_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> ScalarField {
+fn gradient_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> ScalarField {
     let (rows, cols) = field.shape();
 
     let mut df_dx: DMatrix<f32> = DMatrix::zeros(rows, cols);
@@ -127,7 +127,7 @@ fn gradeint_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> 
 ///
 /// Returns:
 /// - A `ScalarField` with the y-gradient of each element
-fn gradeint_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> ScalarField {
+fn gradient_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> ScalarField {
     let (rows, cols) = field.shape();
 
     let mut df_dy: DMatrix<f32> = DMatrix::zeros(rows, cols);
@@ -244,11 +244,11 @@ pub fn advection_upwind(
 ) -> VectorField {
     let (u, v) = (&field[0], &field[1]);
 
-    let mut du_dx = gradeint_x_upwind(u, u, dx);
-    let mut du_dy = gradeint_y_upwind(u, v, dy);
+    let mut du_dx = gradient_x_upwind(u, u, dx);
+    let mut du_dy = gradient_y_upwind(u, v, dy);
 
-    let mut dv_dx = gradeint_x_upwind(v, u, dx);
-    let mut dv_dy = gradeint_y_upwind(v, v, dy);
+    let mut dv_dx = gradient_x_upwind(v, u, dx);
+    let mut dv_dy = gradient_y_upwind(v, v, dy);
 
     zero_where_mask(&mut du_dx, mask);
     zero_where_mask(&mut du_dy, mask);
