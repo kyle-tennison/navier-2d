@@ -4,6 +4,16 @@ use na::DMatrix;
 
 use crate::{ScalarField, VectorField};
 
+/// Compute the finite-difference gradient of a scalar field **in the x axis**.
+/// Uses a central finite difference for interior nodes and a first-order
+/// forward/backward (depends on side) finite difference for edge nodes.
+///
+/// Parameters:
+/// - `field` - A reference to the scalar field to take the gradient of
+/// - `dx` - The size of the elements in the x-axis
+///
+/// Returns:
+/// - A `ScalarField` with the finite difference of each element
 pub fn gradient_x(field: &ScalarField, dx: f32) -> ScalarField {
     let (rows, cols) = field.shape();
 
@@ -29,6 +39,16 @@ pub fn gradient_x(field: &ScalarField, dx: f32) -> ScalarField {
     df_dx
 }
 
+/// Compute the finite-difference gradient of a scalar field **in the y axis**.
+/// Uses a central finite difference for interior nodes and a first-order
+/// forward/backward (depends on side) finite difference for edge nodes.
+///
+/// Parameters:
+/// - `field` - A reference to the scalar field to take the gradient of
+/// - `dy` - The size of the elements in the y-axis
+///
+/// Returns:
+/// - A `ScalarField` with the finite difference of each element
 pub fn gradient_y(field: &ScalarField, dy: f32) -> ScalarField {
     let (rows, cols) = field.shape();
 
@@ -54,6 +74,17 @@ pub fn gradient_y(field: &ScalarField, dy: f32) -> ScalarField {
     df_dy
 }
 
+/// Compute the gradient of a scalar field **in the x axis**. Interior
+/// nodes are computed using an upwind scheme, while edge nodes use
+/// finite differences.
+///
+/// Parameters:
+/// - `field` - A reference to the scalar field to take the gradient of
+/// - `sign_field` - The field to reference for upwind/downwind direction
+/// - `dx` - The size of the elements in the x-axis
+///
+/// Returns:
+/// - A `ScalarField` with the x-gradient of each element
 fn gradeint_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> ScalarField {
     let (rows, cols) = field.shape();
 
@@ -85,6 +116,17 @@ fn gradeint_x_upwind(field: &ScalarField, sign_field: &ScalarField, dx: f32) -> 
     df_dx
 }
 
+/// Compute the gradient of a scalar field **in the y axis**. Interior
+/// nodes are computed using an upwind scheme, while edge nodes use
+/// finite differences.
+///
+/// Parameters:
+/// - `field` - A reference to the scalar field to take the gradient of
+/// - `sign_field` - The field to reference for upwind/downwind direction
+/// - `dy` - The size of the elements in the y-axis
+///
+/// Returns:
+/// - A `ScalarField` with the y-gradient of each element
 fn gradeint_y_upwind(field: &ScalarField, sign_field: &ScalarField, dy: f32) -> ScalarField {
     let (rows, cols) = field.shape();
 

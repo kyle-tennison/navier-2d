@@ -1,3 +1,5 @@
+// Handles preprocessing -- i.e. everything that happens prior to the simulation
+
 use std::{any, path::PathBuf};
 
 use na::DMatrix;
@@ -7,9 +9,17 @@ use tracing::info;
 use crate::preprocessing::serial_mask::SerialMask;
 
 pub mod cli;
-pub mod preprocessor;
+pub mod image_input;
 pub mod serial_mask;
 
+/// Available modes for the simulator to run in
+#[derive(Serialize, Deserialize, Clone)]
+pub enum InterfaceMode {
+    ImageStream(ImageStreamSettings),
+    WebStream(WebStreamSettings),
+}
+
+/// Settings when running in ImageStream mode
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ImageStreamSettings {
     pub frames_dir: PathBuf,
@@ -17,15 +27,11 @@ pub struct ImageStreamSettings {
     pub display_video: bool,
 }
 
+/// Settings for when running in WebStream mode
 #[derive(Serialize, Deserialize, Clone)]
 pub struct WebStreamSettings {}
 
-#[derive(Serialize, Deserialize, Clone)]
-pub enum InterfaceMode {
-    ImageStream(ImageStreamSettings),
-    WebStream(WebStreamSettings),
-}
-
+/// All the simulation parameters passed to the solver thread
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SimulationInput {
     pub mode: InterfaceMode,
@@ -41,12 +47,14 @@ pub struct SimulationInput {
 }
 
 impl SimulationInput {
+    /// Convert the SerialMask attribute into a nalgebra DMatrix
     pub fn get_mask(&self) -> DMatrix<bool> {
         self.mask.as_ref().unwrap().to_mask()
     }
 }
 
 impl SimulationInput {
+    /// Log the simulation input configuration over tracing.
     pub fn log(&self) {
         info!(
             "Simulation is shown below:\n\n\

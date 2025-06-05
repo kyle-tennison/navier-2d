@@ -1,6 +1,9 @@
+// Implementation for a boolean mask that can be serialized and deserialized. Wraps a DMatrix<bool>
+
 use na::DMatrix;
 use serde::{Deserialize, Serialize};
 
+/// A serializable/deserializable boolean mask
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerialMask {
     data: Vec<u8>,
@@ -9,6 +12,7 @@ pub struct SerialMask {
 }
 
 impl SerialMask {
+    /// Construct a `SerialMask` struct from a `DMatrix<bool>` object.
     pub fn from_mask(mask: &DMatrix<bool>) -> Self {
         let (nrows, ncols) = mask.shape();
         let bool_data = mask.data.as_slice().to_vec();
@@ -20,6 +24,7 @@ impl SerialMask {
         }
     }
 
+    /// Desierailze to a `DMatrix<bool>` mask
     pub fn to_mask(&self) -> DMatrix<bool> {
         DMatrix::from_iterator(
             self.nrows,

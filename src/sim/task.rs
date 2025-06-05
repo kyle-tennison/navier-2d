@@ -1,5 +1,6 @@
+// Task runner for the solver thread
+
 use std::{
-    collections::HashMap,
     sync::mpsc,
     thread::{self, JoinHandle},
 };
@@ -12,15 +13,16 @@ use crate::{
     sim::navier::Navier,
 };
 
-pub struct TaskOutput {
+pub struct SimulationOutput {
     pub temporal_map: Vec<f32>, // maps idx->timestamp
 }
 
+/// The solver thread task to run in ImageStream mode
 pub fn imgstream_task(
     settings: &ImageStreamSettings,
     sim: Navier,
     simulation_input: &SimulationInput,
-) -> TaskOutput {
+) -> SimulationOutput {
     let bar = ProgressBar::new(10_000);
     bar.set_style(
         ProgressStyle::with_template(
@@ -56,10 +58,11 @@ pub fn imgstream_task(
         temporal_map.push(t);
     }
 
-    TaskOutput { temporal_map }
+    SimulationOutput { temporal_map }
 }
 
-pub fn spawn_sim_thread(simulation_input: SimulationInput) -> JoinHandle<TaskOutput> {
+/// Spawns the simulation thread and starts the corresponding task
+pub fn spawn_sim_thread(simulation_input: SimulationInput) -> JoinHandle<SimulationOutput> {
     thread::spawn(move || {
         let sim = Navier::new(
             simulation_input.density,
