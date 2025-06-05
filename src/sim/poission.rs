@@ -60,7 +60,6 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
             }
 
             // Neumann condition that boundary dp/dn = 0
-            let mut diag: usize = 0;
             for (di, dj) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
                 let (ni, nj) = ((i as i32) + di, (j as i32) + dj);
 
@@ -69,16 +68,12 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
                     && !(*mask.index((ni as usize, nj as usize)))
                 {
                     let nk = ij_to_k((ni, nj));
-
                     a_coo.push(k, nk, -1.);
-                    diag += 1;
-                } else {
-                    diag += 1;
-                }
+                } 
             }
 
             // add center coefficient at the end
-            a_coo.push(k, k, diag as f32);
+            a_coo.push(k, k, 4 as f32);
             *(field_flat.index_mut(k)) = -field.index((i, j)) * (step_size.powi(2));
         }
     }
