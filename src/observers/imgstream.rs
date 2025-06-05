@@ -23,7 +23,7 @@ pub fn image_save(
     solid_bitmap: &DMatrix<bool>,
     filename: &Path,
 ) -> Result<(), Box<dyn Error>> {
-    let bitmap = bitmap.normalize();
+    let bitmap = bitmap / bitmap.max();
     let (rows, cols) = bitmap.shape();
 
     let root = BitMapBackend::new(&filename, (cols as u32, rows as u32)).into_drawing_area();
