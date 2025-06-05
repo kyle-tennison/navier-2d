@@ -1,3 +1,5 @@
+/// CLI Interface handling
+
 use std::{
     fs::File,
     io::{BufReader, BufWriter},
@@ -13,14 +15,14 @@ use tracing::{error, info, warn};
 use crate::{
     preprocessing::{
         ImageStreamSettings, InterfaceMode, SimulationInput, WebStreamSettings,
-        preprocessor::mask_from_image, serial_mask::SerialMask,
+        image_input::mask_from_image, serial_mask::SerialMask,
     },
     sim::navier::Navier,
 };
 
 static DEFAULT_FRAMES_PATH: LazyLock<&Path> = LazyLock::new(|| Path::new("sim-frames2"));
 
-// Raw, CLI input
+/// CLI Input format
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct CliArgs {
@@ -93,6 +95,11 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
+
+    /// Convert the CLI arguments into a `SimulationInput`.
+    /// 
+    /// Returns
+    /// - The constructed `SimulationInput` object.
     pub fn crate_input(&self) -> SimulationInput {
         // if the input file is supplied, just use that
         let input = if let Some(input_filepath) = &self.input_json {

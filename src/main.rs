@@ -14,8 +14,8 @@ use tracing::{Level, warn};
 use tracing_subscriber::{self, fmt::format::FmtSpan};
 
 use crate::{
-    postprocessing::display,
-    preprocessing::{InterfaceMode, cli::CliArgs},
+    postprocessing::{display, postprocess},
+    preprocessing::{cli::CliArgs, InterfaceMode},
     sim::task::spawn_sim_thread,
 };
 
@@ -35,24 +35,10 @@ fn main() {
     let sim_input = args.crate_input();
     sim_input.log();
 
+    // run sim
     let sim_thread = spawn_sim_thread(sim_input.clone());
+    let sim_output = sim_thread.join().expect("simulation thread panicked");
 
-    if let InterfaceMode::ImageStream(settings) = sim_input.mode {
-        let output = sim_thread.join().expect("Sim thread panicked");
-
-        if settings.display_video {
-            display::play_video(
-                sim_input.simulation_time,
-                60,
-                &output.temporal_map,
-                &settings.frames_dir,
-            )
-            .unwrap();
-        }
-
-        if !settings.retain_frames {
-            _ = fs::remove_dir_all(settings.frames_dir)
-                .inspect_err(|err| warn!("Unable to cleanup frames output: {:?}", err));
-        }
-    };
+    // post process
+    postprocess(sim_input, sim_output);
 }

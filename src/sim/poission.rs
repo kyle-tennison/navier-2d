@@ -1,3 +1,5 @@
+/// Iterative solver for a generic poission equation.
+
 use argmin::{
     core::{Executor, Operator},
     solver::conjugategradient::ConjugateGradient,
@@ -27,16 +29,26 @@ impl Operator for ConjugateGradientOperator<'_> {
     }
 }
 
+/// Iteratively solve the poission equation using the Conjugate Gradient method.
+/// Mathematically, this is: ∇²p = g
+/// 
+/// Parameters
+/// - `field` - The field (g); i.e. the RHS of the poission equation
+/// - `mask` - A boolean mask representing regions to exclude from the solution (e.g., walls, solids, etc)
+/// - `step_size` - The space step size (dx or dy) that is assumed to be uniform in both axes
 pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32) -> ScalarField {
+    
+    // create a mapping between the two coordinate systems
     let (rows, cols) = field.shape();
-
-    // let ij_to_k = |i: usize, j: usize| {i + (j - 1) * cols};
-
-    let mut a_coo: CooMatrix<f32> = CooMatrix::new(rows * cols, rows * cols);
-    let mut field_flat: DVector<f32> = DVector::from_row_slice(field.as_slice());
-
     let ij_to_k = { |(i, j): (i32, i32)| (i + j * (rows as i32)) as usize };
 
+    // start with a coordinate sparse rep for easy loading; convert to compressed sparse-row after
+    let mut a_coo: CooMatrix<f32> = CooMatrix::new(rows * cols, rows * cols);
+
+    // flattern RHS into a vector 
+    let mut field_flat: DVector<f32> = DVector::from_row_slice(field.as_slice());
+
+    // iterate over field, load coordinate matrix
     for i in 0..rows {
         for j in 0..cols {
             let k = ij_to_k((i as i32, j as i32));
@@ -66,7 +78,7 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
                 }
             }
 
-            // Add center coefficient at the end
+            // add center coefficient at the end
             a_coo.push(k, k, diag as f32);
             *(field_flat.index_mut(k)) = -field.index((i, j)) * (step_size.powi(2));
         }
@@ -78,27 +90,10 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
 
     // solve system
     let b: Vec<f32> = field_flat.iter().copied().collect();
-
-    #[cfg(debug_assertions)]
-    {
-        let norm_b = b.iter().map(|v| v * v).sum::<f32>().sqrt();
-
-        assert_ne!(norm_b, 0.);
-
-        debug_assert!(!b.iter().any(|i| i.is_nan() | i.is_infinite()));
-        debug_assert!(
-            !a_coo
-                .triplet_iter()
-                .any(|i| i.2.is_nan() | i.2.is_infinite())
-        );
-    }
-
     let solver: ConjugateGradient<Vec<f32>, f32> = ConjugateGradient::new(b);
     let initial_guess: Vec<f32> = vec![0.0; field_flat.nrows()];
-
     let operator = ConjugateGradientOperator { a: &a_csr };
 
-    // Now run the solver as before, but with DVector<f32> everywhere
     let res = match Executor::new(operator, solver)
         .configure(|state| {
             state

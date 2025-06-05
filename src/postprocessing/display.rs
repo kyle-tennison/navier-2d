@@ -1,3 +1,5 @@
+/// Handles video playback post-solve
+
 use std::{
     error::Error,
     fs,
@@ -9,24 +11,33 @@ use image::{DynamicImage, GenericImageView, imageops::FilterType};
 use minifb::{Key, Window, WindowOptions};
 use ndarray::Array1;
 use screen_size::get_primary_screen_size as get_screen_size;
-use tracing::error;
 
+/// Open a window and play the simulation solution in realtime. Samples
+/// simulation frames (png images) in such a way that the video plays
+/// at true speed.
+/// 
+/// Parameters
+/// - `elapsed_time` - The time domain of the simulation
+/// - `fps` - The desired *video* frames per second
+/// - `temporal_map` - A vector with indices pointing to the time-value in that iteration
+/// - `frames_dir` - The directory that contains the frames (png images) to animate.
 pub fn play_video(
     elapsed_time: f32,
     fps: usize,
     temporal_map: &Vec<f32>,
     frames_dir: &Path,
 ) -> Result<(), Box<dyn Error>> {
+
+
+    // determine which frame indices to sample
     let total_frames = (elapsed_time * (fps as f32)).floor() as usize;
     let mut desired_frames: Vec<usize> = Vec::with_capacity(total_frames);
 
     for t in Array1::linspace(0., elapsed_time, total_frames) {
-        desired_frames.push(
-            temporal_map.iter().position(|&f| f >= t).unwrap()
-        );
+        desired_frames.push(temporal_map.iter().position(|&f| f >= t).unwrap());
     }
 
-    // dont look at this
+    // collect a path of all the desired frames
     let mut paths: Vec<_> = fs::read_dir(frames_dir)?
         .filter_map(Result::ok)
         .filter(|entry| {

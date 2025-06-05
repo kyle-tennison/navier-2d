@@ -1,3 +1,5 @@
+/// Navier-Stokes timestepping struct
+
 use na::DMatrix;
 use rand::{Rng, rngs::ThreadRng};
 
@@ -6,23 +8,56 @@ use crate::{
     sim::{numeric, poission},
 };
 
+/// Maximum allowable velocity before stopping simulation
 const MAX_VELOCITY: f32 = 1000.;
 
+/// High-level Navier-Stokes timestepping obejct. Contains all
+/// simulation prameters and steps through simulation.
 pub struct Navier {
+
+    /// The fluid density
     pub density: f32,
+
+    /// The fluid (shear) viscosity
     pub shear_viscosity: f32,
+
+    /// Inflow velocity (m/s)
     pub inflow: (f32, f32), // (x,y)
+
+    /// The mask representing the solid object
     pub solid_mask: DMatrix<bool>,
+
+    /// The total time domain to simulate over
     pub simtime: f32,
+
+    /// The maximum CFL value that governs the allowable timestep
     pub cfl: f32,
+
+    /// The number of rows in the space domain
     rows: usize,
+
+    /// The number of columns in the space domain
     cols: usize,
+
+    /// The x-axis size of each grid element
     dx: f32,
+
+    /// The y-axis size of each grid element
     dy: f32,
+
+    /// The current time instant of the simulation
     pub t: f32,
+
+    /// The velocity field
     u: VectorField,
+
+    /// The external-acceleration filed
     f: VectorField,
+
+    /// Iteration-counter 
     i: usize,
+
+    /// Thread-local RNG
     rng: ThreadRng,
 }
 
@@ -73,7 +108,7 @@ impl Navier {
         }
     }
 
-    /// Set the boundary values on the velocity field
+    /// Set the boundary values on the velocity field `self.u`
     fn set_bv_u(&mut self) {
         let velocity_noise: f32 = self.rng.random_range(0.0..0.1);
 
@@ -97,7 +132,7 @@ impl Navier {
         self.u[1].row_mut(self.rows - 1).fill(0.);
     }
 
-    /// Predict u*
+    /// Project the next velocity field while neglecting the pressure gradient influence; i.e. u*
     fn predict_u_star(&self, dt: f32) -> VectorField {
         let laplacian_u: VectorField = numeric::laplacian_vf(&self.u, self.dy, self.dx);
         let advection_u: VectorField =
@@ -119,6 +154,14 @@ impl Navier {
         [ustar_x, ustar_y]
     }
 
+    /// Creates a dummy rectangle mask
+    /// 
+    /// Parameters
+    /// - `ny` - The number of rows to include in the mask
+    /// - `nx` - The number of cols to include in the mask
+    /// 
+    /// Returns
+    /// - A `DMatrix<bool>` solid mask of a rectangle.
     pub fn sample_shape_mask(ny: usize, nx: usize) -> DMatrix<bool> {
         let mut mask = DMatrix::from_element(ny, nx, false);
 
@@ -188,11 +231,9 @@ impl Iterator for Navier {
         let dp_dx: ScalarField = numeric::gradient_x(&p, self.dx);
         let dp_dy: ScalarField = numeric::gradient_y(&p, self.dy);
 
-        // compute next velocity field
-        let mut next_ux: ScalarField = &u_star[0] - (dt / self.density) * dp_dx;
-        let mut next_uy: ScalarField = &u_star[1] - (dt / self.density) * dp_dy;
-
-        // cap velocity
+        // check for simulation explosion
+        let next_ux: ScalarField = &u_star[0] - (dt / self.density) * dp_dx;
+        let next_uy: ScalarField = &u_star[1] - (dt / self.density) * dp_dy;
 
         if next_ux.iter().any(|ux| *ux > MAX_VELOCITY)
             || next_uy.iter().any(|uy| *uy > MAX_VELOCITY)
@@ -201,52 +242,11 @@ impl Iterator for Navier {
             return None;
         }
 
-        next_ux.iter_mut().for_each(|f| {
-            if *f > MAX_VELOCITY {
-                *f = MAX_VELOCITY
-            }
-        });
-        next_uy.iter_mut().for_each(|f| {
-            if *f > MAX_VELOCITY {
-                *f = MAX_VELOCITY
-            }
-        });
-
         let next_u: VectorField = [next_ux, next_uy];
-
-        // normalize velocity to prevent explosion
-        // let next_u: VectorField = [next_u[0].normalize(), next_u[1].normalize()];
 
         self.i += 1;
         self.t += dt;
         self.u = next_u.clone();
-
-        // let velocity_magnitude = (self.u[0].map(|x| x.powi(2))
-        //     + self.u[1].map(|y| y.powi(2)))
-        // .map(|k| k.sqrt());
-
-        // let advection = (numeric::advection_upwind(&self.u, &self.solid_mask, self.dy, self.dx));
-
-        // let advection_magnitude = (advection[0].map(|x| x.powi(2))
-        //     + advection[1].map(|y| y.powi(2)))
-        // .map(|k| k.sqrt());
-
-        // let pressure_gradient = [numeric::gradient_x(&p, self.dx), numeric::gradient_y(&p, self.dy)];
-        // let pressure_gradient_magnitude = (pressure_gradient[0].map(|x| x.powi(2))
-        //     + pressure_gradient[1].map(|y| y.powi(2)))
-        // .map(|k| k.sqrt());
-
-        // let laplacian = numeric::laplacian_vf(&self.u, self.dy, self.dx);
-        // let laplacian_magnitude = (laplacian[0].map(|x| x.powi(2))
-        //     + laplacian[1].map(|y| y.powi(2)))
-        // .map(|k| k.sqrt());
-
-        // image_save(&p, format!("pressure-{}.png", self.i).as_str()).unwrap();
-        // image_save(&p, format!("velocity-{}.png", self.i).as_str()).unwrap();
-        // image_save(&velocity_magnitude, format!("velocity-{}.png", self.i).as_str()).unwrap();
-        // image_save(&advection_magnitude, format!("advection-{}.png", self.i).as_str()).unwrap();
-        // image_save(&laplacian_magnitude, format!("laplacian-{}.png", self.i).as_str()).unwrap();
-        // image_save(&pressure_gradien`t_magnitude, format!("pressure-gradient-{}.png", self.i).as_str()).unwrap();
 
         Some((next_u, self.t))
     }
