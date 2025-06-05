@@ -1,4 +1,4 @@
-/// Task runner for the solver thread
+// Task runner for the solver thread
 
 use std::{
     sync::mpsc,

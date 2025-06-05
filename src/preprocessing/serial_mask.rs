@@ -1,4 +1,4 @@
-/// Implementation for a boolean mask that can be serialized and deserialized. Wraps a DMatrix<bool>
+// Implementation for a boolean mask that can be serialized and deserialized. Wraps a DMatrix<bool>
 
 use na::DMatrix;
 use serde::{Deserialize, Serialize};

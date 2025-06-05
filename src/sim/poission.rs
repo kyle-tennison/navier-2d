@@ -1,4 +1,4 @@
-/// Iterative solver for a generic poission equation.
+// Iterative solver for a generic poission equation.
 
 use argmin::{
     core::{Executor, Operator},
@@ -31,13 +31,12 @@ impl Operator for ConjugateGradientOperator<'_> {
 
 /// Iteratively solve the poission equation using the Conjugate Gradient method.
 /// Mathematically, this is: ∇²p = g
-/// 
+///
 /// Parameters
 /// - `field` - The field (g); i.e. the RHS of the poission equation
 /// - `mask` - A boolean mask representing regions to exclude from the solution (e.g., walls, solids, etc)
 /// - `step_size` - The space step size (dx or dy) that is assumed to be uniform in both axes
 pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32) -> ScalarField {
-    
     // create a mapping between the two coordinate systems
     let (rows, cols) = field.shape();
     let ij_to_k = { |(i, j): (i32, i32)| (i + j * (rows as i32)) as usize };
@@ -45,7 +44,7 @@ pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32)
     // start with a coordinate sparse rep for easy loading; convert to compressed sparse-row after
     let mut a_coo: CooMatrix<f32> = CooMatrix::new(rows * cols, rows * cols);
 
-    // flattern RHS into a vector 
+    // flattern RHS into a vector
     let mut field_flat: DVector<f32> = DVector::from_row_slice(field.as_slice());
 
     // iterate over field, load coordinate matrix

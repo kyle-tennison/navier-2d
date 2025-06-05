@@ -1,4 +1,4 @@
-/// Handles preprocessing -- i.e. everything that happens prior to the simulation
+// Handles preprocessing -- i.e. everything that happens prior to the simulation
 
 use std::{any, path::PathBuf};
 
@@ -47,7 +47,6 @@ pub struct SimulationInput {
 }
 
 impl SimulationInput {
-
     /// Convert the SerialMask attribute into a nalgebra DMatrix
     pub fn get_mask(&self) -> DMatrix<bool> {
         self.mask.as_ref().unwrap().to_mask()
@@ -55,7 +54,6 @@ impl SimulationInput {
 }
 
 impl SimulationInput {
-
     /// Log the simulation input configuration over tracing.
     pub fn log(&self) {
         info!(

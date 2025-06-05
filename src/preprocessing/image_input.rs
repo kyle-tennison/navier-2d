@@ -1,4 +1,4 @@
-/// Handles PNG simulation input
+// Handles PNG simulation input
 
 use image::{GenericImageView, ImageReader, Pixel};
 use na::DMatrix;
@@ -7,10 +7,10 @@ use std::{error::Error, path::Path};
 const THRESHOLD_LUMA: u8 = 127;
 
 /// Load a DMatrix boolean mask from a PNG image by looking at pixel luminosity.
-/// 
+///
 /// Parameters
 /// - `image` - The path to the image to process
-/// 
+///
 /// Returns
 /// - The boolean mask as a Result
 pub fn mask_from_image(image: &Path) -> Result<DMatrix<bool>, Box<dyn Error>> {

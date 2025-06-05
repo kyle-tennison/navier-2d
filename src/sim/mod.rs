@@ -1,5 +1,4 @@
-
-/// Numerical simulation related code
+// Numerical simulation related code
 
 pub mod navier;
 mod numeric;

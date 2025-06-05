@@ -1,4 +1,4 @@
-/// Handles video playback post-solve
+// Handles video playback post-solve
 
 use std::{
     error::Error,
@@ -15,7 +15,7 @@ use screen_size::get_primary_screen_size as get_screen_size;
 /// Open a window and play the simulation solution in realtime. Samples
 /// simulation frames (png images) in such a way that the video plays
 /// at true speed.
-/// 
+///
 /// Parameters
 /// - `elapsed_time` - The time domain of the simulation
 /// - `fps` - The desired *video* frames per second
@@ -24,11 +24,9 @@ use screen_size::get_primary_screen_size as get_screen_size;
 pub fn play_video(
     elapsed_time: f32,
     fps: usize,
-    temporal_map: &Vec<f32>,
+    temporal_map: &[f32],
     frames_dir: &Path,
 ) -> Result<(), Box<dyn Error>> {
-
-
     // determine which frame indices to sample
     let total_frames = (elapsed_time * (fps as f32)).floor() as usize;
     let mut desired_frames: Vec<usize> = Vec::with_capacity(total_frames);

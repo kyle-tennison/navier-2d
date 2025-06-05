@@ -1,4 +1,4 @@
-/// Navier-Stokes timestepping struct
+// Navier-Stokes timestepping struct
 
 use na::DMatrix;
 use rand::{Rng, rngs::ThreadRng};
@@ -14,7 +14,6 @@ const MAX_VELOCITY: f32 = 1000.;
 /// High-level Navier-Stokes timestepping obejct. Contains all
 /// simulation prameters and steps through simulation.
 pub struct Navier {
-
     /// The fluid density
     pub density: f32,
 
@@ -54,7 +53,7 @@ pub struct Navier {
     /// The external-acceleration filed
     f: VectorField,
 
-    /// Iteration-counter 
+    /// Iteration-counter
     i: usize,
 
     /// Thread-local RNG
@@ -155,11 +154,11 @@ impl Navier {
     }
 
     /// Creates a dummy rectangle mask
-    /// 
+    ///
     /// Parameters
     /// - `ny` - The number of rows to include in the mask
     /// - `nx` - The number of cols to include in the mask
-    /// 
+    ///
     /// Returns
     /// - A `DMatrix<bool>` solid mask of a rectangle.
     pub fn sample_shape_mask(ny: usize, nx: usize) -> DMatrix<bool> {

@@ -1,4 +1,4 @@
-/// CLI Interface handling
+// CLI Interface handling
 
 use std::{
     fs::File,
@@ -95,9 +95,8 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
-
     /// Convert the CLI arguments into a `SimulationInput`.
-    /// 
+    ///
     /// Returns
     /// - The constructed `SimulationInput` object.
     pub fn crate_input(&self) -> SimulationInput {

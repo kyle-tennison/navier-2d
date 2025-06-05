@@ -1,5 +1,3 @@
-use std::fs;
-
 extern crate nalgebra as na;
 
 mod observers;
@@ -9,14 +7,11 @@ mod sim;
 
 use clap::Parser;
 use na::DMatrix;
-use num_traits::Zero;
-use tracing::{Level, warn};
+use tracing::Level;
 use tracing_subscriber::{self, fmt::format::FmtSpan};
 
 use crate::{
-    postprocessing::{display, postprocess},
-    preprocessing::{cli::CliArgs, InterfaceMode},
-    sim::task::spawn_sim_thread,
+    postprocessing::postprocess, preprocessing::cli::CliArgs, sim::task::spawn_sim_thread,
 };
 
 type ScalarField = DMatrix<f32>;

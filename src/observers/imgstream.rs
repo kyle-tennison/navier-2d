@@ -1,12 +1,7 @@
 /// Handles image rendering and IO
 use na::DMatrix;
 use plotters::prelude::*;
-use std::{
-    error::Error,
-    fs,
-    path::{Path, PathBuf},
-    sync::mpsc,
-};
+use std::{error::Error, fs, path::Path, sync::mpsc};
 
 /// A display packet that streams from the solver thread to this IO thread
 #[derive(Clone)]
@@ -61,9 +56,8 @@ pub fn image_save(
     Ok(())
 }
 
-
 /// Runs the image IO task
-/// 
+///
 /// Parameters
 /// - `inbound_bitmaps` - mpsc receiver for inbound DisplayPackets
 /// - `solid_mask` - The solid mask that is assumed to be constant between all inbount bitmaps
