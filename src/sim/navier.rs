@@ -5,7 +5,7 @@ use rand::{Rng, rngs::ThreadRng};
 
 use crate::{
     ScalarField, VectorField,
-    sim::{numeric, poission},
+    sim::{numeric, poisson},
 };
 
 /// Maximum allowable velocity before stopping simulation
@@ -213,7 +213,7 @@ impl Iterator for Navier {
         let u_star: VectorField = self.predict_u_star(dt);
 
         // solve pressure gradient
-        let poission_rhs: ScalarField =
+        let poisson_rhs: ScalarField =
             (self.density / dt) * numeric::divergence(&u_star, self.dy, self.dx);
 
         #[cfg(debug_assertions)]
@@ -221,11 +221,11 @@ impl Iterator for Navier {
             let u_star_norm = u_star[0].norm() + u_star[1].norm();
             debug_assert_ne!(u_star_norm, 0.);
 
-            let poission_rhs_norm = poission_rhs.norm();
-            debug_assert_ne!(poission_rhs_norm, 0.);
+            let poisson_rhs_norm = poisson_rhs.norm();
+            debug_assert_ne!(poisson_rhs_norm, 0.);
         }
 
-        let p: ScalarField = poission::poission_solve(&poission_rhs, &self.solid_mask, self.dx);
+        let p: ScalarField = poisson::poisson_solve(&poisson_rhs, &self.solid_mask, self.dx);
 
         let dp_dx: ScalarField = numeric::gradient_x(&p, self.dx);
         let dp_dy: ScalarField = numeric::gradient_y(&p, self.dy);

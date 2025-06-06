@@ -2,5 +2,5 @@
 
 pub mod navier;
 mod numeric;
-mod poission;
+mod poisson;
 pub mod task;

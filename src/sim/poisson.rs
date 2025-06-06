@@ -1,4 +1,4 @@
-// Iterative solver for a generic poission equation.
+// Iterative solver for a generic poisson equation.
 
 use argmin::{
     core::{Executor, Operator},
@@ -29,14 +29,14 @@ impl Operator for ConjugateGradientOperator<'_> {
     }
 }
 
-/// Iteratively solve the poission equation using the Conjugate Gradient method.
+/// Iteratively solve the poisson equation using the Conjugate Gradient method.
 /// Mathematically, this is: ∇²p = g
 ///
 /// Parameters
-/// - `field` - The field (g); i.e. the RHS of the poission equation
+/// - `field` - The field (g); i.e. the RHS of the poisson equation
 /// - `mask` - A boolean mask representing regions to exclude from the solution (e.g., walls, solids, etc)
 /// - `step_size` - The space step size (dx or dy) that is assumed to be uniform in both axes
-pub fn poission_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32) -> ScalarField {
+pub fn poisson_solve(field: &ScalarField, mask: &DMatrix<bool>, step_size: f32) -> ScalarField {
     // create a mapping between the two coordinate systems
     let (rows, cols) = field.shape();
     let ij_to_k = { |(i, j): (i32, i32)| (i + j * (rows as i32)) as usize };
