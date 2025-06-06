@@ -1,6 +1,7 @@
 /// Handles image rendering and IO
 use na::DMatrix;
 use plotters::prelude::*;
+use tracing::debug;
 use std::{error::Error, fs, path::Path, sync::mpsc};
 
 /// A display packet that streams from the solver thread to this IO thread
@@ -22,7 +23,7 @@ pub fn image_save(
     solid_bitmap: &DMatrix<bool>,
     filename: &Path,
 ) -> Result<(), Box<dyn Error>> {
-    let bitmap = bitmap.normalize();
+    let bitmap = bitmap / bitmap.max();
     let (rows, cols) = bitmap.shape();
 
     let root = BitMapBackend::new(&filename, (cols as u32, rows as u32)).into_drawing_area();
@@ -74,10 +75,16 @@ pub fn image_io_loop(
 
     loop {
         // read inbound packet
-        let inbound = inbound_bitmaps
-            .recv()
-            .map_err(|err| panic!("Couldn't read inbound bitmap: {:?}", err))
-            .unwrap();
+        let inbound = match inbound_bitmaps
+            .recv() {
+                Ok(i) => i,
+                Err(_) => {
+                    debug!("Closing image IO loop");
+                    break;
+                }
+            };
+
+        
 
         let velocity_magnitude = (inbound.velocity_x.map(|x| x.powi(2))
             + inbound.velocity_y.map(|y| y.powi(2)))
@@ -90,4 +97,6 @@ pub fn image_io_loop(
         )
         .expect("Image save failed");
     }
+
+    Ok(())
 }
